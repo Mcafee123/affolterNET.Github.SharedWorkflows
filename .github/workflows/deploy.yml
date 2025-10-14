@@ -61,7 +61,7 @@ on:
 
 jobs:
   deploy-and-tag:
-    name: Deploy and Tag ${{ inputs.tag-prefix }}-${{ inputs.version }}
+    name: 'deploy ${{ inputs.version }}, tag ${{ inputs.tag-prefix }}-${{ inputs.version }}'
     runs-on: ubuntu-latest
     steps:
 
