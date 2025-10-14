@@ -1,0 +1,25 @@
+name: 'Checkout Code'
+inputs:
+  fetch-depth:
+    description: 'Fetch depth for git history'
+    required: false
+    default: 1
+
+runs:
+  using: 'composite'
+  steps:
+
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: ${{ inputs.fetch-depth }}
+        token: ${{ github.token }}
+
+    - name: Debug checkout context
+      shell: bash
+      run: |
+        echo "Event: ${{ github.event_name }}"
+        echo "Ref: ${{ github.ref_name }}"
+        echo "Head Ref: ${{ github.head_ref }}"
+        echo "Current commit: $(git rev-parse HEAD)"
+        echo "Current branch: $(git branch --show-current)"

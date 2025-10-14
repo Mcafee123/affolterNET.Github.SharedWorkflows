@@ -1,0 +1,133 @@
+name: Build
+
+on:
+  workflow_call:
+    inputs:
+      # Frontend
+      build-frontend:
+        description: 'Build the frontend project'
+        required: false
+        type: boolean
+        default: false
+      frontend-root:
+        description: 'Root directory of the frontend project'
+        required: false
+        type: string
+        default: ''
+      frontend-folder:
+        description: 'Folder containing the frontend project'
+        required: false
+        type: string
+        default: ''
+      frontend-build-command:
+        description: 'Command to build the frontend'
+        required: false
+        default: 'npm run build'
+        type: string
+      node-version:
+        description: 'Node.js version to use for frontend build'
+        required: false
+        default: '20.x'
+        type: string
+      build-directory:
+        description: 'Directory where frontend build artifacts are created'
+        required: false
+        default: 'build'
+        type: string
+      artifact-name:
+        description: 'Name for the uploaded frontend build artifact'
+        required: false
+        default: 'frontend-build'
+        type: string
+      # Backend
+      backend-root:
+        description: 'Root directory of the backend project'
+        required: true
+        type: string
+      backend-folder:
+        description: 'Folder containing the backend project'
+        required: true
+        type: string
+      backend-project-file:
+        description: 'Backend project file (e.g., .csproj, package.json)'
+        required: true
+        type: string
+      # Docker
+      image-name:
+        description: 'Name of the Docker image to build'
+        required: true
+        type: string
+      registry-name:
+        description: 'Azure Container Registry login server (e.g., myregistry.azurecr.io)'
+        required: true
+        type: string
+      dockerfile:
+        description: 'Path to the Dockerfile relative to the backend root'
+        required: false
+        default: 'Dockerfile'
+        type: string
+      push:
+        description: 'Whether to push the Docker image to the registry'
+        required: false
+        type: boolean
+        default: false
+      # Versioning
+      version-script:
+        description: 'Path to version script downloaded from shared repository'
+        required: false
+        default: './scripts/ci_version.sh'
+        type: string
+      scripts-version:
+        description: 'Version/tag of scripts to use from shared repository'
+        required: false
+        default: 'main'
+        type: string
+    secrets:
+      # ACR
+      acr-username:
+        required: false
+      acr-password:
+        required: false
+
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: ./actions/setup/checkout
+        with:
+          fetch-depth: 0
+
+      - name: Get version scripts
+        uses: ./actions/get-scripts
+        with:
+          scripts-version: ${{ inputs.scripts-version }}
+          github-token: ${{ github.token }}
+
+      - name: Build Frontend
+        if: ${{ inputs.build-frontend == true }}
+        uses: ./actions/build/build-frontend
+        with:
+          project-root: ${{ inputs.frontend-root }}
+          project-folder: ${{ inputs.frontend-folder }}
+          build-command: ${{ inputs.frontend-build-command }}
+          node-version: ${{ inputs.node-version }}
+          build-directory: ${{ inputs.build-directory }}
+          artifact-name: ${{ inputs.artifact-name }}
+
+      - name: Build Backend
+        uses: ./actions/build/build-backend
+        with:
+          project-root: ${{ inputs.backend-root }}
+          project-folder: ${{ inputs.backend-folder }}
+          project-file: ${{ inputs.backend-project-file }}
+          dockerfile: ${{ inputs.dockerfile}}
+          image-name: ${{ inputs.image-name }}
+          registry-name: ${{ inputs.registry-name }}
+          push: ${{ inputs.push }}
+          version-script: ${{ inputs.version-script }}
+          scripts-version: ${{ inputs.scripts-version }}
+        env:
+          ACR_USERNAME: ${{ secrets.acr-username }}
+          ACR_PASSWORD: ${{ secrets.acr-password }}

@@ -1,0 +1,232 @@
+name: Deploy and Tag
+
+on:
+  workflow_call:
+    inputs:
+      image-name:
+        required: true
+        type: string
+      registry-name:
+        required: true
+        type: string
+      version:
+        required: true
+        type: string
+      project-root: 
+        required: true
+        type: string  
+      project-folder: 
+        required: true
+        type: string
+      project-file: 
+        required: true
+        type: string
+      version-script:
+        required: true
+        type: string
+      tag-script:
+        required: true
+        type: string
+      tag-prefix:
+        required: true
+        type: string
+      tf-module-path:
+        required: true
+        type: string
+    secrets:
+      azure-credentials:
+        required: true
+      ssh-private-key:
+        required: true
+      arm-client-id:
+        required: true
+      arm-client-secret:
+        required: true
+      arm-tenant-id:
+        required: true
+      arm-subscription-id:
+        required: true
+      acr-username:
+        required: true
+      acr-password:
+        required: true
+
+jobs:
+  deploy-and-tag:
+    name: Deploy and Tag ${{ inputs.tag-prefix }}-${{ inputs.version }}
+    runs-on: ubuntu-latest
+    steps:
+
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v2
+      with:
+        terraform_version: '1.7.5'
+        terraform_wrapper: false  # Needed to properly capture outputs
+
+
+    - name: Azure Login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.azure-credentials }}
+
+    - name: Setup SSH key for private repositories
+      uses: webfactory/ssh-agent@v0.9.0
+      with:
+        ssh-private-key: ${{ secrets.ssh-private-key }}
+
+    - name: Terraform Init
+      run: terraform init -backend-config=_backend.hcl
+      working-directory: ${{ inputs.tf-module-path }}
+      env:
+        ARM_CLIENT_ID: ${{ secrets.arm-client-id }}
+        ARM_CLIENT_SECRET: ${{ secrets.arm-client-secret }}
+        ARM_TENANT_ID: ${{ secrets.arm-tenant-id }}
+        ARM_SUBSCRIPTION_ID: ${{ secrets.arm-subscription-id }}
+        ARM_USE_CLI: false
+
+    - name: Terraform Plan
+      id: plan
+      run: |
+        terraform plan -out=tfplan
+        echo "plan_status=success" >> $GITHUB_OUTPUT
+      working-directory: ${{ inputs.tf-module-path }}
+      continue-on-error: true
+      env:
+        ARM_CLIENT_ID: ${{ secrets.arm-client-id }}
+        ARM_CLIENT_SECRET: ${{ secrets.arm-client-secret }}
+        ARM_TENANT_ID: ${{ secrets.arm-tenant-id }}
+        ARM_SUBSCRIPTION_ID: ${{ secrets.arm-subscription-id }}
+        ARM_USE_CLI: false
+
+    - name: Terraform Apply
+      id: apply
+      if: steps.plan.outputs.plan_status == 'success'
+      run: |
+        terraform apply -auto-approve tfplan
+        echo "apply_status=success" >> $GITHUB_OUTPUT
+      working-directory: ${{ inputs.tf-module-path }}
+      env:
+        ARM_CLIENT_ID: ${{ secrets.arm-client-id }}
+        ARM_CLIENT_SECRET: ${{ secrets.arm-client-secret }}
+        ARM_TENANT_ID: ${{ secrets.arm-tenant-id }}
+        ARM_SUBSCRIPTION_ID: ${{ secrets.arm-subscription-id }}
+        ARM_USE_CLI: false
+
+    - name: Cleanup Terraform plan
+      if: always()
+      run: rm -f tfplan
+      working-directory: ${{ inputs.tf-module-path }}
+
+    - name: Create Git tag
+      if: steps.apply.outputs.apply_status == 'success'
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        VERSION="${{ inputs.version }}"
+        echo "Creating git tag using: ./${{ inputs.tag-script }} ${{ inputs.version }} ${{ inputs.tag-prefix }} ${{ inputs.registry-name }} ${{ inputs.image-name }}"
+        ./${{ inputs.tag-script }} ${{ inputs.version }} ${{ inputs.tag-prefix }} ${{ inputs.registry-name }} ${{ inputs.image-name }}
+
+    - name: Create deployment summary
+      if: steps.apply.outputs.apply_status == 'success'
+      run: |
+        VERSION="${{ inputs.version }}"
+        echo "## 🚀 App Deployment Completed" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Version:** $VERSION" >> $GITHUB_STEP_SUMMARY
+        echo "**Environment:** Development" >> $GITHUB_STEP_SUMMARY
+        echo "**Image:** ${{ inputs.registry-name }}/${{ inputs.image-name }}:$VERSION" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📊 Deployment Information:" >> $GITHUB_STEP_SUMMARY
+        echo "- **Terraform Directory:** tf/dev/app" >> $GITHUB_STEP_SUMMARY
+        echo "- **Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Workflow:** ${{ github.workflow }}" >> $GITHUB_STEP_SUMMARY
+
+        # Job 4: Security scan (optional but recommended)
+  
+  security-scan:
+    name: Security Scan
+    needs: deploy-and-tag
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Debug ACR credentials
+      run: |
+        echo "Registry: ${{ inputs.registry-name }}"
+        echo "Username length: ${#ACR_USERNAME}"
+        echo "Password length: ${#ACR_PASSWORD}"
+        if [ -z "$ACR_USERNAME" ] || [ -z "$ACR_PASSWORD" ]; then
+          echo "ERROR: ACR credentials are empty!"
+          echo "Username empty: $([ -z "$ACR_USERNAME" ] && echo 'YES' || echo 'NO')"
+          echo "Password empty: $([ -z "$ACR_PASSWORD" ] && echo 'YES' || echo 'NO')"
+        else
+          echo "ACR credentials are available"
+        fi
+      env:
+        ACR_USERNAME: ${{ secrets.acr-username }}
+        ACR_PASSWORD: ${{ secrets.acr-password }}
+        
+    - name: Log in to Azure Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ inputs.registry-name }}
+        username: ${{ secrets.acr-username }}
+        password: ${{ secrets.acr-password }}
+
+    - name: Run Trivy vulnerability scanner (SARIF)
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: '${{ inputs.registry-name }}/${{ inputs.image-name }}:${{ inputs.version }}'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+
+    - name: Run Trivy vulnerability scanner (Table format)
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: '${{ inputs.registry-name }}/${{ inputs.image-name }}:${{ inputs.version }}'
+        format: 'table'
+        output: 'trivy-results.txt'
+
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      continue-on-error: true
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+    - name: Upload Trivy scan results as artifact
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: trivy-scan-results-${{ inputs.version }}
+        path: |
+          trivy-results.sarif
+          trivy-results.txt
+
+    - name: Display security scan summary
+      if: always()
+      run: |
+        echo "## 🔍 Security Scan Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Image Scanned:** \`${{ inputs.registry-name }}/${{ inputs.image-name }}:${{ inputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [ -f trivy-results.txt ]; then
+          echo "### Vulnerability Summary:" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          head -50 trivy-results.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📁 **Full results available in workflow artifacts**" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "⚠️ Security scan results not available" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "💡 **Note:** To view detailed security findings in GitHub Security tab, enable Code Scanning in repository settings." >> $GITHUB_STEP_SUMMARY
+

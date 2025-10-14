@@ -1,0 +1,96 @@
+name: Build Backend
+description: 'Builds the backend project and uploads the build artifacts'
+inputs:
+  project-root:
+    description: 'Root directory of the project'
+    required: true
+    type: string
+  project-folder:
+    description: 'Folder containing the backend project'
+    required: true
+    type: string
+  project-file:
+    description: 'Backend project file (e.g., .csproj, package.json)'
+    required: true
+    type: string
+  dockerfile:
+    description: 'Path to the Dockerfile relative to the project root'
+    required: false
+    default: 'Dockerfile'
+    type: string
+  image-name:
+    description: 'Name of the Docker image to build'
+    required: true
+    type: string
+  registry-name:
+    description: 'Azure Container Registry login server (e.g., myregistry.azurecr.io)'
+    required: true
+    type: string
+  push:
+    description: 'Whether to push the Docker image to the registry'
+    required: false
+    default: true
+    type: boolean
+  version-script:
+    description: 'Path to version script downloaded from shared repository'
+    required: false
+    default: './scripts/ci_version.sh'
+    type: string
+  scripts-version:
+    description: 'Version/tag of scripts to use from shared repository'
+    required: false
+    default: 'main'
+    type: string
+secrets:
+  acr-username:
+    description: 'Username for Azure Container Registry'
+    required: true
+  acr-password:
+    description: 'Password for Azure Container Registry'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+
+  - name: Get version from project file
+    id: version
+    shell: bash
+    run: |
+      # Get current version from project file
+      echo "Reading version using: ./${{ inputs.version-script }} read ${{ inputs.project-root }}/${{ inputs.project-folder }}/${{ inputs.project-file}}"
+      VERSION_OUTPUT=$(./${{ inputs.version-script }} read ${{ inputs.project-root }}/${{ inputs.project-folder }}/${{ inputs.project-file}})
+      echo "$VERSION_OUTPUT"
+      echo "version=$VERSION_OUTPUT" >> $GITHUB_OUTPUT
+
+  - name: Log in to Azure Container Registry
+    if: ${{ inputs.push == true }}
+    uses: docker/login-action@v3
+    with:
+      registry: ${{ inputs.registry-name }}
+      username: ${{ env.ACR_USERNAME }}
+      password: ${{ env.ACR_PASSWORD }}
+
+  - name: Extract metadata for Docker
+    id: meta
+    uses: docker/metadata-action@v5
+    with:
+      images: ${{ inputs.registry-name }}/${{ inputs.image-name }}
+      tags: |
+        type=ref,event=branch,prefix=api-
+        type=ref,event=pr,prefix=api-pr-
+        type=raw,value=api-${{ steps.version.outputs.version }}
+        type=raw,value=${{ steps.version.outputs.version }}
+        type=raw,value=latest,enable={{is_default_branch}}
+
+  - name: Build Docker image (and push if required)
+    uses: docker/build-push-action@v5
+    with:
+      context: ./${{ inputs.project-root }}
+      file: ./${{ inputs.project-root }}/${{ inputs.dockerfile }}
+      push: ${{ inputs.push }}
+      tags: ${{ steps.meta.outputs.tags }}
+      labels: ${{ steps.meta.outputs.labels }}
+      build-args: |
+        CONTAINER_IMAGE_VERSION=${{ steps.version.outputs.version }}
+
