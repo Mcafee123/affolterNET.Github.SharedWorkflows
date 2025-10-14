@@ -3,6 +3,7 @@ name: Build
 on:
   workflow_call:
     inputs:
+
       # Frontend
       build-frontend:
         description: 'Build the frontend project'
@@ -24,6 +25,7 @@ on:
         required: false
         default: '20.x'
         type: string
+
       # Backend
       backend-root:
         description: 'Root directory of the backend project'
@@ -37,6 +39,7 @@ on:
         description: 'Backend project file (e.g., .csproj, package.json)'
         required: true
         type: string
+
       # Docker
       image-name:
         description: 'Name of the Docker image to build'
@@ -56,6 +59,7 @@ on:
         required: false
         type: boolean
         default: false
+
       # Versioning
       update-version:
         description: 'Update the version in the project file'
@@ -72,7 +76,21 @@ on:
         required: false
         default: 'main'
         type: string
+      
+      # Terraform
+      tf-module-path:
+        description: 'Path to the Terraform module'
+        required: false
+        type: string
+        default: ''
+      tfvars-file:
+        description: 'Path to the Terraform tfvars file to update'
+        required: false
+        type: string
+        default: 'terraform.tfvars'
+
     secrets:
+
       # ACR
       acr-username:
         description: 'Azure Container Registry username'
@@ -103,8 +121,8 @@ jobs:
         run: |
           if [ ${{ inputs.update-version }} == true ]; then
             echo "Updating version in project file..."
-            echo "Running: ./${{ inputs.version-script }} update ${{ inputs.backend-root }}/${{ inputs.backend-folder }}/${{ inputs.backend-project-file}}"
-            ./${{ inputs.version-script }} update ${{ inputs.backend-root }}/${{ inputs.backend-folder }}/${{ inputs.backend-project-file}} >> $GITHUB_OUTPUT
+            echo "Running: ./${{ inputs.version-script }} update ${{ inputs.backend-root }}/${{ inputs.backend-folder }}/${{ inputs.backend-project-file}} ${{ inputs.tf-module-path }}/${{ inputs.tfvars-file }}"
+            ./${{ inputs.version-script }} update ${{ inputs.backend-root }}/${{ inputs.backend-folder }}/${{ inputs.backend-project-file}} ${{ inputs.tf-module-path }}/${{ inputs.tfvars-file }} >> $GITHUB_OUTPUT
           else
             echo "Reading version from project file..."
             echo "Running: ./${{ inputs.version-script }} read ${{ inputs.backend-root }}/${{ inputs.backend-folder }}/${{ inputs.backend-project-file}}"

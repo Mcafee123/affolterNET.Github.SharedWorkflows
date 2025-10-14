@@ -3,6 +3,8 @@ name: Deploy and Tag
 on:
   workflow_call:
     inputs:
+
+      # Docker
       image-name:
         required: true
         type: string
@@ -12,31 +14,35 @@ on:
       version:
         required: true
         type: string
-      project-root: 
-        required: true
-        type: string  
-      project-folder: 
-        required: true
-        type: string
-      project-file: 
-        required: true
-        type: string
-      version-script:
-        required: true
-        type: string
-      tag-script:
-        required: true
-        type: string
       tag-prefix:
         required: true
         type: string
+      tag-script:
+        required: false
+        default: 'scripts/ci_tag.sh'
+        type: string
+
+      # Terraform
       tf-module-path:
         required: true
         type: string
+
+      # Versioning
+      scripts-version:
+        required: false
+        type: string
+        default: 'main'
+
     secrets:
-      azure-credentials:
+
+      # Github
+      github-token:
         required: true
       ssh-private-key:
+        required: true
+
+      # Azure
+      azure-credentials:
         required: true
       arm-client-id:
         required: true
@@ -46,6 +52,8 @@ on:
         required: true
       arm-subscription-id:
         required: true
+
+      # ACR
       acr-username:
         required: true
       acr-password:
@@ -58,16 +66,19 @@ jobs:
     steps:
 
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/checkout@main
+
+    - name: Get version scripts
+      uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/get-scripts@main
       with:
-        token: ${{ secrets.GITHUB_TOKEN }}
+        scripts-version: ${{ inputs.scripts-version }}
+        github-token: ${{ secrets.github-token }}
 
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v2
       with:
         terraform_version: '1.7.5'
         terraform_wrapper: false  # Needed to properly capture outputs
-
 
     - name: Azure Login
       uses: azure/login@v1
@@ -125,7 +136,7 @@ jobs:
     - name: Create Git tag
       if: steps.apply.outputs.apply_status == 'success'
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.github-token }}
       run: |
         VERSION="${{ inputs.version }}"
         echo "Creating git tag using: ./${{ inputs.tag-script }} ${{ inputs.version }} ${{ inputs.tag-prefix }} ${{ inputs.registry-name }} ${{ inputs.image-name }}"
