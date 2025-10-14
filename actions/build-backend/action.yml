@@ -64,8 +64,19 @@ runs:
   using: 'composite'
   steps:
 
+  - name: Build Backend Action Started
+    shell: bash
+    run: |
+      echo "🚀 Starting Build Backend Action"
+      echo "All inputs received:"
+      echo "  - project-root: ${{ inputs.project-root }}"
+      echo "  - project-folder: ${{ inputs.project-folder }}"
+      echo "  - version: ${{ inputs.version }}"
+      echo "  - push: ${{ inputs.push }}"
+      echo "  - registry-name: ${{ inputs.registry-name }}"
+      echo "  - image-name: ${{ inputs.image-name }}"
+
   - name: Debug ACR Login Info
-    if: inputs.push == true
     shell: bash
     run: |
       echo "🔐 Preparing to log in to Azure Container Registry..."
@@ -73,6 +84,7 @@ runs:
       echo "Push enabled: ${{ inputs.push }}"
       echo "Username provided: $([ -n '${{ inputs.acr-username }}' ] && echo 'Yes' || echo 'No')"
       echo "Password provided: $([ -n '${{ inputs.acr-password }}' ] && echo 'Yes' || echo 'No')"
+      echo "Condition check: inputs.push == true evaluates to: $([ '${{ inputs.push }}' = 'true' ] && echo 'TRUE' || echo 'FALSE')"
 
   - name: Log in to Azure Container Registry
     if: inputs.push == true
