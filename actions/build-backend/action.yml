@@ -89,7 +89,7 @@ runs:
     with:
       context: ./${{ inputs.project-root }}
       file: ./${{ inputs.project-root }}/${{ inputs.dockerfile }}
-      push: inputs.push == true
+      push: ${{ inputs.push }}
       tags: ${{ steps.meta.outputs.tags }}
       labels: ${{ steps.meta.outputs.labels }}
       build-args: |
