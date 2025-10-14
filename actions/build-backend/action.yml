@@ -41,7 +41,6 @@ inputs:
     required: false
     default: 'main'
     type: string
-secrets:
   acr-username:
     description: 'Username for Azure Container Registry'
     required: true
@@ -68,8 +67,8 @@ runs:
     uses: docker/login-action@v3
     with:
       registry: ${{ inputs.registry-name }}
-      username: ${{ env.ACR_USERNAME }}
-      password: ${{ env.ACR_PASSWORD }}
+      username: ${{ inputs.acr-username }}
+      password: ${{ inputs.acr-password }}
 
   - name: Extract metadata for Docker
     id: meta

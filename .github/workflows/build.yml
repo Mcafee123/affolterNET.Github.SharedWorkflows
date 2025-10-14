@@ -67,12 +67,15 @@ on:
         required: false
         default: 'main'
         type: string
-    secrets:
       # ACR
       acr-username:
+        description: 'Azure Container Registry username'
         required: false
+        type: string
       acr-password:
+        description: 'Azure Container Registry password'
         required: false
+        type: string
 
 
 jobs:
@@ -110,6 +113,5 @@ jobs:
           push: ${{ inputs.push }}
           version-script: ${{ inputs.version-script }}
           scripts-version: ${{ inputs.scripts-version }}
-        env:
-          ACR_USERNAME: ${{ secrets.acr-username }}
-          ACR_PASSWORD: ${{ secrets.acr-password }}
+          acr-username: ${{ inputs.acr-username }}
+          acr-password: ${{ inputs.acr-password }}
