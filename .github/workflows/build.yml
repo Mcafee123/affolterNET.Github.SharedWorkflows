@@ -57,6 +57,11 @@ on:
         type: boolean
         default: false
       # Versioning
+      update-version:
+        description: 'Update the version in the project file'
+        required: false
+        type: boolean
+        default: false
       version-script:
         description: 'Path to version script downloaded from shared repository'
         required: false
@@ -92,6 +97,22 @@ jobs:
           scripts-version: ${{ inputs.scripts-version }}
           github-token: ${{ github.token }}
 
+      - name: Get version from project file
+        id: version
+        shell: bash
+        run: |
+          if [ ${{ inputs.update-version }} == true ]; then
+            echo "Updating version in project file..."
+            echo "Running: ./${{ inputs.version-script }} update ${{ inputs.backend-root }}/${{ inputs.backend-folder }}/${{ inputs.backend-project-file}}"
+            VERSION_OUTPUT=$(./${{ inputs.version-script }} update ${{ inputs.backend-root }}/${{ inputs.backend-folder }}/${{ inputs.backend-project-file}})
+          else
+            echo "Reading version from project file..."
+            echo "Running: ./${{ inputs.version-script }} read ${{ inputs.backend-root }}/${{ inputs.backend-folder }}/${{ inputs.backend-project-file}}"
+            VERSION_OUTPUT=$(./${{ inputs.version-script }} read ${{ inputs.backend-root }}/${{ inputs.backend-folder }}/${{ inputs.backend-project-file}})
+          fi
+          echo "$VERSION_OUTPUT"
+          echo "version=$VERSION_OUTPUT" >> $GITHUB_OUTPUT
+
       - name: Build Frontend
         if: ${{ inputs.build-frontend == true }}
         uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/build-frontend@main
@@ -103,6 +124,7 @@ jobs:
       - name: Build Backend
         uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/build-backend@main
         with:
+          version: ${{ steps.version.outputs.version }}
           project-root: ${{ inputs.backend-root }}
           project-folder: ${{ inputs.backend-folder }}
           project-file: ${{ inputs.backend-project-file }}

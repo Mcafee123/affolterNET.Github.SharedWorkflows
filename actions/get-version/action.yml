@@ -1,0 +1,5 @@
+name: Get Version
+
+on:
+  workflow_call:
+    inputs:
