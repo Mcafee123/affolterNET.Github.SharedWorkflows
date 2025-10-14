@@ -4,34 +4,17 @@ on:
   workflow_call:
     inputs:
 
-      # Docker
-      image-name:
+      # Configuration
+      config-file:
+        description: "Path to configuration JSON file"
         required: true
         type: string
-      registry-name:
-        required: true
-        type: string
+
+      # Deploy options
       version:
+        description: "Version to deploy"
         required: true
         type: string
-      tag-prefix:
-        required: true
-        type: string
-      tag-script:
-        required: false
-        default: 'scripts/ci_tag.sh'
-        type: string
-
-      # Terraform
-      tf-module-path:
-        required: true
-        type: string
-
-      # Versioning
-      scripts-version:
-        required: false
-        type: string
-        default: 'main'
 
     secrets:
 
@@ -61,9 +44,19 @@ on:
 
 jobs:
   deploy-and-tag:
-    name: 'deploy ${{ inputs.version }}, tag ${{ inputs.tag-prefix }}-${{ inputs.version }}'
+    name: 'deploy version: ${{ inputs.version }}'
     runs-on: ubuntu-latest
     steps:
+
+    - name: Checkout code
+      uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/checkout@main
+
+    # Load configuration
+    - name: Load configuration
+      id: config
+      uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/load-config@main
+      with:
+        config-file: ${{ inputs.config-file }}
 
     - name: Deploy Workflow Started
       shell: bash
@@ -71,16 +64,16 @@ jobs:
         echo "🚀 Starting Deploy and Tag Workflow"
         echo "All inputs received:"
         echo "  Docker inputs:"
-        echo "    - image-name: ${{ inputs.image-name }}"
-        echo "    - registry-name: ${{ inputs.registry-name }}"
+        echo "    - image-name: ${{ steps.config.outputs.image-name }}"
+        echo "    - registry-name: ${{ steps.config.outputs.registry-name }}"
         echo "    - version: ${{ inputs.version }}"
         echo "  Tag inputs:"
-        echo "    - tag-prefix: ${{ inputs.tag-prefix }}"
-        echo "    - tag-script: ${{ inputs.tag-script }}"
+        echo "    - tag-prefix: ${{ steps.config.outputs.tag-prefix }}"
+        echo "    - tag-script: ${{ steps.config.outputs.tag-script }}"
         echo "  Terraform inputs:"
-        echo "    - tf-module-path: ${{ inputs.tf-module-path }}"
+        echo "    - tf-module-path: ${{ steps.config.outputs.tf-module-path }}"
         echo "  Versioning inputs:"
-        echo "    - scripts-version: ${{ inputs.scripts-version }}"
+        echo "    - scripts-version: ${{ steps.config.outputs.scripts-version }}"
         echo "  Secrets provided:"
         echo "    - github-token: $([ -n '${{ secrets.github-token }}' ] && echo 'Yes' || echo 'No')"
         echo "    - ssh-private-key: $([ -n '${{ secrets.ssh-private-key }}' ] && echo 'Yes' || echo 'No')"
@@ -91,9 +84,6 @@ jobs:
         echo "    - arm-subscription-id: $([ -n '${{ secrets.arm-subscription-id }}' ] && echo 'Yes' || echo 'No')"
         echo "    - acr-username: $([ -n '${{ secrets.acr-username }}' ] && echo 'Yes' || echo 'No')"
         echo "    - acr-password: $([ -n '${{ secrets.acr-password }}' ] && echo 'Yes' || echo 'No')"
-
-    - name: Checkout code
-      uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/checkout@main
 
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v2
@@ -113,7 +103,7 @@ jobs:
 
     - name: Terraform Init
       run: terraform init -backend-config=_backend.hcl
-      working-directory: ${{ inputs.tf-module-path }}
+      working-directory: ${{ steps.config.outputs.tf-module-path }}
       env:
         ARM_CLIENT_ID: ${{ secrets.arm-client-id }}
         ARM_CLIENT_SECRET: ${{ secrets.arm-client-secret }}
@@ -126,7 +116,7 @@ jobs:
       run: |
         terraform plan -out=tfplan
         echo "plan_status=success" >> $GITHUB_OUTPUT
-      working-directory: ${{ inputs.tf-module-path }}
+      working-directory: ${{ steps.config.outputs.tf-module-path }}
       continue-on-error: true
       env:
         ARM_CLIENT_ID: ${{ secrets.arm-client-id }}
@@ -141,7 +131,7 @@ jobs:
       run: |
         terraform apply -auto-approve tfplan
         echo "apply_status=success" >> $GITHUB_OUTPUT
-      working-directory: ${{ inputs.tf-module-path }}
+      working-directory: ${{ steps.config.outputs.tf-module-path }}
       env:
         ARM_CLIENT_ID: ${{ secrets.arm-client-id }}
         ARM_CLIENT_SECRET: ${{ secrets.arm-client-secret }}
@@ -152,7 +142,7 @@ jobs:
     - name: Cleanup Terraform plan
       if: always()
       run: rm -f tfplan
-      working-directory: ${{ inputs.tf-module-path }}
+      working-directory: ${{ steps.config.outputs.tf-module-path }}
 
     - name: Create Git tag
       if: steps.apply.outputs.apply_status == 'success'
@@ -160,8 +150,8 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.github-token }}
       run: |
         VERSION="${{ inputs.version }}"
-        echo "Creating git tag using: ./${{ inputs.tag-script }} ${{ inputs.version }} ${{ inputs.tag-prefix }} ${{ inputs.registry-name }} ${{ inputs.image-name }}"
-        ./${{ inputs.tag-script }} ${{ inputs.version }} ${{ inputs.tag-prefix }} ${{ inputs.registry-name }} ${{ inputs.image-name }}
+        echo "Creating git tag using: ./${{ steps.config.outputs.tag-script }} ${{ inputs.version }} ${{ steps.config.outputs.tag-prefix }} ${{ steps.config.outputs.registry-name }} ${{ steps.config.outputs.image-name }}"
+        ./${{ steps.config.outputs.tag-script }} ${{ inputs.version }} ${{ steps.config.outputs.tag-prefix }} ${{ steps.config.outputs.registry-name }} ${{ steps.config.outputs.image-name }}
 
     - name: Create deployment summary
       if: steps.apply.outputs.apply_status == 'success'
@@ -171,7 +161,7 @@ jobs:
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "**Version:** $VERSION" >> $GITHUB_STEP_SUMMARY
         echo "**Environment:** Development" >> $GITHUB_STEP_SUMMARY
-        echo "**Image:** ${{ inputs.registry-name }}/${{ inputs.image-name }}:$VERSION" >> $GITHUB_STEP_SUMMARY
+        echo "**Image:** ${{ steps.config.outputs.registry-name }}/${{ steps.config.outputs.image-name }}:$VERSION" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### 📊 Deployment Information:" >> $GITHUB_STEP_SUMMARY
         echo "- **Terraform Directory:** tf/dev/app" >> $GITHUB_STEP_SUMMARY
@@ -187,9 +177,17 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
+
+    # Load configuration
+    - name: Load configuration
+      id: config
+      uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/load-config@main
+      with:
+        config-file: ${{ inputs.config-file }}
+
     - name: Debug ACR credentials
       run: |
-        echo "Registry: ${{ inputs.registry-name }}"
+        echo "Registry: ${{ steps.config.outputs.registry-name }}"
         echo "Username length: ${#ACR_USERNAME}"
         echo "Password length: ${#ACR_PASSWORD}"
         if [ -z "$ACR_USERNAME" ] || [ -z "$ACR_PASSWORD" ]; then
@@ -206,21 +204,21 @@ jobs:
     - name: Log in to Azure Container Registry
       uses: docker/login-action@v3
       with:
-        registry: ${{ inputs.registry-name }}
+        registry: ${{ steps.config.outputs.registry-name }}
         username: ${{ secrets.acr-username }}
         password: ${{ secrets.acr-password }}
 
     - name: Run Trivy vulnerability scanner (SARIF)
       uses: aquasecurity/trivy-action@master
       with:
-        image-ref: '${{ inputs.registry-name }}/${{ inputs.image-name }}:${{ inputs.version }}'
+        image-ref: '${{ steps.config.outputs.registry-name }}/${{ steps.config.outputs.image-name }}:${{ steps.config.outputs.version }}'
         format: 'sarif'
         output: 'trivy-results.sarif'
 
     - name: Run Trivy vulnerability scanner (Table format)
       uses: aquasecurity/trivy-action@master
       with:
-        image-ref: '${{ inputs.registry-name }}/${{ inputs.image-name }}:${{ inputs.version }}'
+        image-ref: '${{ steps.config.outputs.registry-name }}/${{ steps.config.outputs.image-name }}:${{ steps.config.outputs.version }}'
         format: 'table'
         output: 'trivy-results.txt'
 
@@ -245,7 +243,7 @@ jobs:
       run: |
         echo "## 🔍 Security Scan Results" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "**Image Scanned:** \`${{ inputs.registry-name }}/${{ inputs.image-name }}:${{ inputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "**Image Scanned:** \`${{ steps.config.outputs.registry-name }}/${{ steps.config.outputs.image-name }}:${{ steps.config.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         
         if [ -f trivy-results.txt ]; then

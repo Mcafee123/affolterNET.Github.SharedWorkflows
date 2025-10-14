@@ -4,90 +4,27 @@ on:
   workflow_call:
     inputs:
 
-      # Frontend
-      build-frontend:
-        description: 'Build the frontend project'
-        required: false
-        type: boolean
-        default: false
-      frontend-root:
-        description: 'Root directory of the frontend project'
-        required: false
-        type: string
-        default: ''
-      frontend-build-command:
-        description: 'Command to build the frontend'
-        required: false
-        default: 'npm run build'
-        type: string
-      node-version:
-        description: 'Node.js version to use for frontend build'
-        required: false
-        default: '20.x'
-        type: string
-
-      # Backend
-      backend-root:
-        description: 'Root directory of the backend project'
-        required: true
-        type: string
-      backend-folder:
-        description: 'Folder containing the backend project'
-        required: true
-        type: string
-      backend-project-file:
-        description: 'Backend project file (e.g., .csproj, package.json)'
+      # Configuration
+      config-file:
+        description: "Path to configuration JSON file"
         required: true
         type: string
 
-      # Docker
-      image-name:
-        description: 'Name of the Docker image to build'
+      # Build options
+      stage:
+        description: "Build stage: develop, pr, merge"
         required: true
         type: string
-      registry-name:
-        description: 'Azure Container Registry login server (e.g., myregistry.azurecr.io)'
-        required: true
-        type: string
-      dockerfile:
-        description: 'Path to the Dockerfile relative to the backend root'
-        required: false
-        default: 'Dockerfile'
-        type: string
+
+      # Override options (optional)
       push:
-        description: 'Whether to push the Docker image to the registry'
+        description: "Push Docker image"
         required: false
         type: boolean
-        default: false
-
-      # Versioning
       update-version:
-        description: 'Update the version in the project file'
+        description: "Update version"
         required: false
         type: boolean
-        default: false
-      version-script:
-        description: 'Path to version script downloaded from shared repository'
-        required: false
-        default: './scripts/ci_version.sh'
-        type: string
-      scripts-version:
-        description: 'Version/tag of scripts to use from shared repository'
-        required: false
-        default: 'main'
-        type: string
-      
-      # Terraform
-      tf-module-path:
-        description: 'Path to the Terraform module'
-        required: false
-        type: string
-        default: ''
-      tfvars-file:
-        description: 'Path to the Terraform tfvars file to update'
-        required: false
-        type: string
-        default: 'terraform.tfvars'
 
     secrets:
 
@@ -104,88 +41,102 @@ on:
         description: 'The version read from or written to the backend project file'
         value: ${{ jobs.build.outputs.version }}
 
-
 jobs:
   build:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}  # Job captures step output
     steps:
-      - name: Build Workflow Started
-        shell: bash
-        run: |
-          echo "🚀 Starting Build Workflow"
-          echo "All inputs received:"
-          echo "  Frontend inputs:"
-          echo "    - build-frontend: ${{ inputs.build-frontend }}"
-          echo "    - frontend-root: ${{ inputs.frontend-root }}"
-          echo "    - frontend-build-command: ${{ inputs.frontend-build-command }}"
-          echo "    - node-version: ${{ inputs.node-version }}"
-          echo "  Backend inputs:"
-          echo "    - backend-root: ${{ inputs.backend-root }}"
-          echo "    - backend-folder: ${{ inputs.backend-folder }}"
-          echo "    - backend-project-file: ${{ inputs.backend-project-file }}"
-          echo "  Docker inputs:"
-          echo "    - image-name: ${{ inputs.image-name }}"
-          echo "    - registry-name: ${{ inputs.registry-name }}"
-          echo "    - dockerfile: ${{ inputs.dockerfile }}"
-          echo "    - push: ${{ inputs.push }}"
-          echo "  Versioning inputs:"
-          echo "    - update-version: ${{ inputs.update-version }}"
-          echo "    - version-script: ${{ inputs.version-script }}"
-          echo "    - scripts-version: ${{ inputs.scripts-version }}"
-          echo "  Terraform inputs:"
-          echo "    - tf-module-path: ${{ inputs.tf-module-path }}"
-          echo "    - tfvars-file: ${{ inputs.tfvars-file }}"
-          echo "  Secrets provided:"
-          echo "    - acr-username: $([ -n '${{ secrets.acr-username }}' ] && echo 'Yes' || echo 'No')"
-          echo "    - acr-password: $([ -n '${{ secrets.acr-password }}' ] && echo 'Yes' || echo 'No')"
 
       - name: Checkout code
         uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/checkout@main
         with:
           fetch-depth: 0
 
+      # Load configuration at the start of the job
+      - name: Load configuration
+        id: config
+        uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/load-config@main
+        with:
+          config-file: ${{ inputs.config-file }}
+
+      # Skip if PR is running to main
+      - name: Check if should skip
+        if: steps.config.outputs.pr-running-to-main == 'true'
+        run: |
+          echo "⚠️ Skipping build - PR is running to main"
+          exit 0
+
+      - name: Build Workflow Started
+        shell: bash
+        run: |
+          echo "🚀 Starting Build Workflow"
+          echo "All inputs received:"
+          echo "  Frontend inputs:"
+          echo "    - build-frontend: ${{ steps.config.outputs.build-frontend }}"
+          echo "    - frontend-root: ${{ steps.config.outputs.frontend-root }}"
+          echo "    - frontend-build-command: ${{ steps.config.outputs.frontend-build-command }}"
+          echo "    - node-version: ${{ steps.config.outputs.node-version }}"
+          echo "  Backend inputs:"
+          echo "    - backend-root: ${{ steps.config.outputs.backend-root }}"
+          echo "    - backend-folder: ${{ steps.config.outputs.backend-folder }}"
+          echo "    - backend-project-file: ${{ steps.config.outputs.backend-project-file }}"
+          echo "  Docker inputs:"
+          echo "    - image-name: ${{ steps.config.outputs.image-name }}"
+          echo "    - registry-name: ${{ steps.config.outputs.registry-name }}"
+          echo "    - dockerfile: ${{ steps.config.outputs.dockerfile }}"
+          echo "    - push: ${{ steps.config.outputs.push }}"
+          echo "  Versioning inputs:"
+          echo "    - update-version: ${{ steps.config.outputs.update-version }}"
+          echo "    - version-script: ${{ steps.config.outputs.version-script }}"
+          echo "    - scripts-version: ${{ steps.config.outputs.scripts-version }}"
+          echo "  Terraform inputs:"
+          echo "    - tf-module-path: ${{ steps.config.outputs.tf-module-path }}"
+          echo "    - tfvars-file: ${{ steps.config.outputs.tfvars-file }}"
+          echo "  Secrets provided:"
+          echo "    - acr-username: $([ -n '${{ secrets.acr-username }}' ] && echo 'Yes' || echo 'No')"
+          echo "    - acr-password: $([ -n '${{ secrets.acr-password }}' ] && echo 'Yes' || echo 'No')"
+
       - name: Get version scripts
         uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/get-scripts@main
         with:
-          scripts-version: ${{ inputs.scripts-version }}
+          scripts-version: ${{ steps.config.outputs.scripts-version }}
           github-token: ${{ github.token }}
 
       - name: Get version from project file
         id: version
         shell: bash
         run: |
-          if [ ${{ inputs.update-version }} == true ]; then
+          if [ ${{ steps.config.outputs.update-version }} == true ]; then
             echo "Updating version in project file..."
-            echo "Running: ./${{ inputs.version-script }} update ${{ inputs.backend-root }}/${{ inputs.backend-folder }}/${{ inputs.backend-project-file}} ${{ inputs.tf-module-path }}/${{ inputs.tfvars-file }}"
-            ./${{ inputs.version-script }} update ${{ inputs.backend-root }}/${{ inputs.backend-folder }}/${{ inputs.backend-project-file}} ${{ inputs.tf-module-path }}/${{ inputs.tfvars-file }} >> $GITHUB_OUTPUT
+            echo "Running: ./${{ steps.config.outputs.version-script }} update ${{ steps.config.outputs.backend-root }}/${{ steps.config.outputs.backend-folder }}/${{ steps.config.outputs.backend-project-file}} ${{ steps.config.outputs.tf-module-path }}/${{ steps.config.outputs.tfvars-file }}"
+            ./${{ steps.config.outputs.version-script }} update ${{ steps.config.outputs.backend-root }}/${{ steps.config.outputs.backend-folder }}/${{ steps.config.outputs.backend-project-file}} ${{ steps.config.outputs.tf-module-path }}/${{ steps.config.outputs.tfvars-file }} >> $GITHUB_OUTPUT
           else
             echo "Reading version from project file..."
-            echo "Running: ./${{ inputs.version-script }} read ${{ inputs.backend-root }}/${{ inputs.backend-folder }}/${{ inputs.backend-project-file}}"
-            ./${{ inputs.version-script }} read ${{ inputs.backend-root }}/${{ inputs.backend-folder }}/${{ inputs.backend-project-file}} >> $GITHUB_OUTPUT
+            echo "Running: ./${{ steps.config.outputs.version-script }} read ${{ steps.config.outputs.backend-root }}/${{ steps.config.outputs.backend-folder }}/${{ steps.config.outputs.backend-project-file}}"
+            ./${{ steps.config.outputs.version-script }} read ${{ steps.config.outputs.backend-root }}/${{ steps.config.outputs.backend-folder }}/${{ steps.config.outputs.backend-project-file}} >> $GITHUB_OUTPUT
           fi
 
       - name: Build Frontend
-        if: ${{ inputs.build-frontend == true }}
+        if: ${{ steps.config.outputs.build-frontend == true }}
         uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/build-frontend@main
         with:
-          frontend-root: ${{ inputs.frontend-root }}
-          build-command: ${{ inputs.frontend-build-command }}
-          node-version: ${{ inputs.node-version }}
+          frontend-root: ${{ steps.config.outputs.frontend-root }}
+          build-command: ${{ steps.config.outputs.frontend-build-command }}
+          node-version: ${{ steps.config.outputs.node-version }}
 
       - name: Build Backend
         uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/build-backend@main
         with:
           version: ${{ steps.version.outputs.version }}
-          project-root: ${{ inputs.backend-root }}
-          project-folder: ${{ inputs.backend-folder }}
-          project-file: ${{ inputs.backend-project-file }}
-          dockerfile: ${{ inputs.dockerfile}}
-          image-name: ${{ inputs.image-name }}
-          registry-name: ${{ inputs.registry-name }}
-          push: ${{ inputs.push }}
-          version-script: ${{ inputs.version-script }}
-          scripts-version: ${{ inputs.scripts-version }}
+          project-root: ${{ steps.config.outputs.backend-root }}
+          project-folder: ${{ steps.config.outputs.backend-folder }}
+          project-file: ${{ steps.config.outputs.backend-project-file }}
+          dockerfile: ${{ steps.config.outputs.dockerfile }}
+          image-name: ${{ steps.config.outputs.image-name }}
+          registry-name: ${{ steps.config.outputs.registry-name }}
+          push: ${{ steps.config.outputs.push }}
+          version-script: ${{ steps.config.outputs.version-script }}
+          scripts-version: ${{ steps.config.outputs.scripts-version }}
           acr-username: ${{ secrets.acr-username }}
           acr-password: ${{ secrets.acr-password }}
