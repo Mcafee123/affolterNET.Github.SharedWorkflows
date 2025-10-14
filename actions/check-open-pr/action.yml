@@ -4,6 +4,11 @@ inputs:
     description: 'GitHub token to access the repository and pull requests'
     required: true
 
+outputs:
+  pr_running_to_main:
+    description: 'Whether there is an open PR from current branch to main'
+    value: ${{ steps.check-pr.outputs.pr_running_to_main }}
+
 runs:
   using: 'composite'
   steps:
