@@ -95,19 +95,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: ./actions/checkout
+        uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/checkout@main
         with:
           fetch-depth: 0
 
       - name: Get version scripts
-        uses: ./actions/get-scripts
+        uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/get-scripts@main
         with:
           scripts-version: ${{ inputs.scripts-version }}
           github-token: ${{ github.token }}
 
       - name: Build Frontend
         if: ${{ inputs.build-frontend == true }}
-        uses: ./actions/build-frontend
+        uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/build-frontend@main
         with:
           project-root: ${{ inputs.frontend-root }}
           project-folder: ${{ inputs.frontend-folder }}
@@ -117,7 +117,7 @@ jobs:
           artifact-name: ${{ inputs.artifact-name }}
 
       - name: Build Backend
-        uses: ./actions/build-backend
+        uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/build-backend@main
         with:
           project-root: ${{ inputs.backend-root }}
           project-folder: ${{ inputs.backend-folder }}
