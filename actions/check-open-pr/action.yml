@@ -1,5 +1,5 @@
 name: 'Check open PR'
-secrets:
+inputs:
   github-token:
     description: 'GitHub token to access the repository and pull requests'
     required: true
@@ -11,8 +11,9 @@ runs:
   - name: Check for open PR to main
     id: check-pr
     if: github.event_name == 'push'
+    shell: bash
     env:
-      GH_TOKEN: ${{ secrets.github-token }}
+      GH_TOKEN: ${{ inputs.github-token }}
     run: |
       # Check if there's an open PR from current branch to main
       pr_count=$(gh pr list --repo ${{ github.repository }} --head "${{ github.ref_name }}" --base main --json number | jq length)
