@@ -14,11 +14,6 @@ on:
         required: false
         type: string
         default: ''
-      frontend-folder:
-        description: 'Folder containing the frontend project'
-        required: false
-        type: string
-        default: ''
       frontend-build-command:
         description: 'Command to build the frontend'
         required: false
@@ -99,8 +94,7 @@ jobs:
         if: ${{ inputs.build-frontend == true }}
         uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/build-frontend@main
         with:
-          project-root: ${{ inputs.frontend-root }}
-          project-folder: ${{ inputs.frontend-folder }}
+          frontend-root: ${{ inputs.frontend-root }}
           build-command: ${{ inputs.frontend-build-command }}
           node-version: ${{ inputs.node-version }}
 

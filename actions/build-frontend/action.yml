@@ -1,12 +1,8 @@
 name: Build Frontend
 description: 'Builds the frontend project'
 inputs:
-  project-root:
-    description: 'Root directory of the project'
-    required: true
-    type: string
-  project-folder:
-    description: 'Folder containing the frontend project'
+  frontend-root:
+    description: 'Root directory of the frontend project'
     required: true
     type: string
   build-command:
@@ -39,12 +35,12 @@ runs:
       shell: bash
       run: |
         echo "Installing npm dependencies..."
-        cd ${{ inputs.project-root }}/${{ inputs.project-folder }}
+        cd ${{ inputs.frontend-root }}
         npm install
 
     - name: Build Frontend
       shell: bash
       run: |
         echo "Building frontend project..."
-        cd ${{ inputs.project-root }}/${{ inputs.project-folder }}
+        cd ${{ inputs.frontend-root }}
         ${{ inputs.build-command }}
