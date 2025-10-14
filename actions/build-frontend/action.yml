@@ -1,5 +1,5 @@
 name: Build Frontend
-description: 'Builds the frontend project and uploads the build artifacts'
+description: 'Builds the frontend project'
 inputs:
   project-root:
     description: 'Root directory of the project'
@@ -18,16 +18,6 @@ inputs:
     description: 'Node.js version to use'
     required: false
     default: '20.x'
-    type: string
-  build-directory:
-    description: 'Directory where build artifacts are created'
-    required: false
-    default: 'build'
-    type: string
-  artifact-name:
-    description: 'Name for the uploaded build artifact'
-    required: false
-    default: 'frontend-build'
     type: string
 
 runs:
@@ -58,9 +48,3 @@ runs:
         echo "Building frontend project..."
         cd ${{ inputs.project-root }}/${{ inputs.project-folder }}
         ${{ inputs.build-command }}
-
-    - name: Archive Build Artifacts
-      uses: actions/upload-artifact@v3
-      with:
-        name: ${{ inputs.artifact-name }}
-        path: ${{ inputs.project-root }}/${{ inputs.project-folder }}/${{ inputs.build-directory }}

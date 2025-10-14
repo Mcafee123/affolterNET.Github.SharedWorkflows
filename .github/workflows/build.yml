@@ -29,16 +29,6 @@ on:
         required: false
         default: '20.x'
         type: string
-      build-directory:
-        description: 'Directory where frontend build artifacts are created'
-        required: false
-        default: 'build'
-        type: string
-      artifact-name:
-        description: 'Name for the uploaded frontend build artifact'
-        required: false
-        default: 'frontend-build'
-        type: string
       # Backend
       backend-root:
         description: 'Root directory of the backend project'
@@ -113,8 +103,6 @@ jobs:
           project-folder: ${{ inputs.frontend-folder }}
           build-command: ${{ inputs.frontend-build-command }}
           node-version: ${{ inputs.node-version }}
-          build-directory: ${{ inputs.build-directory }}
-          artifact-name: ${{ inputs.artifact-name }}
 
       - name: Build Backend
         uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/build-backend@main
