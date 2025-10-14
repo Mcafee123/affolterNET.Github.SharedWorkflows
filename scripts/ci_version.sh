@@ -143,7 +143,7 @@ push_with_retry() {
     while [ $attempt -le $max_attempts ]; do
         log "📤 Attempt $attempt/$max_attempts: Pushing changes to GitHub..."
         
-        if git push origin HEAD:$GITHUB_HEAD_REF; then
+        if git push origin HEAD:$GITHUB_HEAD_REF >&2; then
             log "✅ Changes pushed successfully to $(git branch --show-current)"
             return 0
         else
@@ -152,7 +152,7 @@ push_with_retry() {
                 sleep $delay
                 
                 # Pull and rebase any new changes
-                if git pull --rebase origin $GITHUB_HEAD_REF 2>/dev/null; then
+                if git pull --rebase origin $GITHUB_HEAD_REF >&2 2>/dev/null; then
                     log "✅ Pulled and rebased latest changes"
                 else
                     log "ℹ️ No changes to pull or rebase failed, continuing..."
@@ -203,7 +203,7 @@ commit_and_push_version() {
   - $project_file
   - $tfvars_file"
     
-    if git commit -m "$commit_message"; then
+    if git commit -m "$commit_message" >&2; then
         log "✅ Version change committed successfully"
         
         # Push the changes back to the current branch with retry mechanism

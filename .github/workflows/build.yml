@@ -104,14 +104,12 @@ jobs:
           if [ ${{ inputs.update-version }} == true ]; then
             echo "Updating version in project file..."
             echo "Running: ./${{ inputs.version-script }} update ${{ inputs.backend-root }}/${{ inputs.backend-folder }}/${{ inputs.backend-project-file}}"
-            VERSION_OUTPUT=$(./${{ inputs.version-script }} update ${{ inputs.backend-root }}/${{ inputs.backend-folder }}/${{ inputs.backend-project-file}})
+            ./${{ inputs.version-script }} update ${{ inputs.backend-root }}/${{ inputs.backend-folder }}/${{ inputs.backend-project-file}} >> $GITHUB_OUTPUT
           else
             echo "Reading version from project file..."
             echo "Running: ./${{ inputs.version-script }} read ${{ inputs.backend-root }}/${{ inputs.backend-folder }}/${{ inputs.backend-project-file}}"
-            VERSION_OUTPUT=$(./${{ inputs.version-script }} read ${{ inputs.backend-root }}/${{ inputs.backend-folder }}/${{ inputs.backend-project-file}})
+            ./${{ inputs.version-script }} read ${{ inputs.backend-root }}/${{ inputs.backend-folder }}/${{ inputs.backend-project-file}} >> $GITHUB_OUTPUT
           fi
-          echo "$VERSION_OUTPUT"
-          echo "version=$VERSION_OUTPUT" >> $GITHUB_OUTPUT
 
       - name: Build Frontend
         if: ${{ inputs.build-frontend == true }}
