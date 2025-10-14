@@ -13,6 +13,17 @@ runs:
   using: 'composite'
   steps:
 
+  - name: Check Open PR Action Started
+    shell: bash
+    run: |
+      echo "🚀 Starting Check Open PR Action"
+      echo "All inputs received:"
+      echo "  - github-token: $([ -n '${{ inputs.github-token }}' ] && echo 'Provided' || echo 'Not provided')"
+      echo "Context info:"
+      echo "  - event_name: ${{ github.event_name }}"
+      echo "  - ref_name: ${{ github.ref_name }}"
+      echo "  - repository: ${{ github.repository }}"
+
   - name: Check for open PR to main
     id: check-pr
     if: github.event_name == 'push'

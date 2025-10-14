@@ -9,6 +9,13 @@ runs:
   using: 'composite'
   steps:
 
+    - name: Checkout Action Started
+      shell: bash
+      run: |
+        echo "🚀 Starting Checkout Action"
+        echo "All inputs received:"
+        echo "  - fetch-depth: ${{ inputs.fetch-depth }}"
+
     - name: Checkout code
       uses: actions/checkout@v4
       with:

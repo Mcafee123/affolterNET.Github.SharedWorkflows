@@ -20,6 +20,15 @@ runs:
   using: 'composite'
   steps:
 
+    - name: Build Frontend Action Started
+      shell: bash
+      run: |
+        echo "🚀 Starting Build Frontend Action"
+        echo "All inputs received:"
+        echo "  - frontend-root: ${{ inputs.frontend-root }}"
+        echo "  - build-command: ${{ inputs.build-command }}"
+        echo "  - node-version: ${{ inputs.node-version }}"
+
     - name: Set up Node.js
       uses: actions/setup-node@v3
       with:

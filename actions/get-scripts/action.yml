@@ -13,6 +13,14 @@ inputs:
 runs:
   using: 'composite'
   steps:
+    - name: Get Scripts Action Started
+      shell: bash
+      run: |
+        echo "🚀 Starting Get Scripts Action"
+        echo "All inputs received:"
+        echo "  - scripts-version: ${{ inputs.scripts-version }}"
+        echo "  - github-token: $([ -n '${{ inputs.github-token }}' ] && echo 'Provided' || echo 'Not provided')"
+
     - name: Download and verify scripts from shared repository
       shell: bash
       env:

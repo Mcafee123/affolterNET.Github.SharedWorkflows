@@ -76,21 +76,6 @@ runs:
       echo "  - registry-name: ${{ inputs.registry-name }}"
       echo "  - image-name: ${{ inputs.image-name }}"
 
-  - name: Debug ACR Login Info
-    shell: bash
-    run: |
-      echo "🔐 Preparing to log in to Azure Container Registry..."
-      echo "Registry: ${{ inputs.registry-name }}"
-      echo "Push enabled: ${{ inputs.push }}"
-      echo "Push type: $(echo '${{ inputs.push }}' | wc -c) chars"
-      echo "Push raw value: '${{ inputs.push }}'"
-      echo "Username provided: $([ -n '${{ inputs.acr-username }}' ] && echo 'Yes' || echo 'No')"
-      echo "Password provided: $([ -n '${{ inputs.acr-password }}' ] && echo 'Yes' || echo 'No')"
-      echo "Condition check: inputs.push == true evaluates to: $([ '${{ inputs.push }}' = 'true' ] && echo 'TRUE' || echo 'FALSE')"
-      echo "Testing different conditions:"
-      echo "  - inputs.push (as boolean): $([ '${{ inputs.push }}' = 'true' ] && echo 'TRUE' || echo 'FALSE')"
-      echo "  - inputs.push == 'true' (as string): $([ '${{ inputs.push }}' = 'true' ] && echo 'TRUE' || echo 'FALSE')"
-
   - name: Log in to Azure Container Registry
     if: inputs.push
     uses: docker/login-action@v3
