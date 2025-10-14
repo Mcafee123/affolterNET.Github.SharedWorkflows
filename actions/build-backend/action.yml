@@ -64,6 +64,16 @@ runs:
   using: 'composite'
   steps:
 
+  - name: Debug ACR Login Info
+    if: inputs.push == true
+    shell: bash
+    run: |
+      echo "🔐 Preparing to log in to Azure Container Registry..."
+      echo "Registry: ${{ inputs.registry-name }}"
+      echo "Push enabled: ${{ inputs.push }}"
+      echo "Username provided: $([ -n '${{ inputs.acr-username }}' ] && echo 'Yes' || echo 'No')"
+      echo "Password provided: $([ -n '${{ inputs.acr-password }}' ] && echo 'Yes' || echo 'No')"
+
   - name: Log in to Azure Container Registry
     if: inputs.push == true
     uses: docker/login-action@v3
@@ -71,6 +81,18 @@ runs:
       registry: ${{ inputs.registry-name }}
       username: ${{ inputs.acr-username }}
       password: ${{ inputs.acr-password }}
+
+  - name: Verify ACR Login
+    if: inputs.push == true
+    shell: bash
+    run: |
+      echo "✅ Successfully logged in to ${{ inputs.registry-name }}"
+      echo "🔍 Checking Docker auth configuration..."
+      if docker info > /dev/null 2>&1; then
+        echo "✅ Docker daemon is accessible"
+      else
+        echo "❌ Docker daemon is not accessible"
+      fi
 
   - name: Extract metadata for Docker
     id: meta
