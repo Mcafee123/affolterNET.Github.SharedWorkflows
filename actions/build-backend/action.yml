@@ -43,10 +43,10 @@ inputs:
     type: string
   acr-username:
     description: 'Username for Azure Container Registry'
-    required: true
+    required: false
   acr-password:
     description: 'Password for Azure Container Registry'
-    required: true
+    required: false
 
 runs:
   using: 'composite'
