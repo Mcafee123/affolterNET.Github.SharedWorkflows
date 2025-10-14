@@ -13,7 +13,7 @@ inputs:
 runs:
   using: 'composite'
   steps:
-    - name: Download scripts from shared repository
+    - name: Download and verify scripts from shared repository
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
@@ -26,12 +26,13 @@ runs:
         # Create scripts directory if it doesn't exist
         mkdir -p scripts
         
-        # List of scripts to download
+        # List of scripts to download - defined once and reused
         SCRIPTS=(
           "ci_version.sh"
           "ci_tag.sh"
         )
         
+        # Download scripts
         for script in "${SCRIPTS[@]}"; do
           # Clean up existing version if it exists
           if [ -f "scripts/$script" ]; then
@@ -51,19 +52,20 @@ runs:
         done
         
         echo "✅ All scripts downloaded successfully"
-
-    - name: Verify scripts
-      shell: bash
-      run: |
+        
+        # Verify the downloaded scripts
         echo "🔍 Verifying downloaded scripts..."
         ls -la scripts/
         
-        # Basic validation
-        for script in scripts/*.sh; do
-          if [ -f "$script" ] && [ -x "$script" ]; then
-            echo "✅ $script - OK (executable)"
+        # Basic validation - using the same SCRIPTS array
+        for script in "${SCRIPTS[@]}"; do
+          script_path="scripts/$script"
+          if [ -f "$script_path" ] && [ -x "$script_path" ]; then
+            echo "✅ $script_path - OK (executable)"
           else
-            echo "❌ $script - FAILED (not found or not executable)"
+            echo "❌ $script_path - FAILED (not found or not executable)"
             exit 1
           fi
         done
+        
+        echo "✅ All scripts verified successfully"
