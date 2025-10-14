@@ -95,7 +95,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: ./actions/setup/checkout
+        uses: ./actions/checkout
         with:
           fetch-depth: 0
 
@@ -107,7 +107,7 @@ jobs:
 
       - name: Build Frontend
         if: ${{ inputs.build-frontend == true }}
-        uses: ./actions/build/build-frontend
+        uses: ./actions/build-frontend
         with:
           project-root: ${{ inputs.frontend-root }}
           project-folder: ${{ inputs.frontend-folder }}
@@ -117,7 +117,7 @@ jobs:
           artifact-name: ${{ inputs.artifact-name }}
 
       - name: Build Backend
-        uses: ./actions/build/build-backend
+        uses: ./actions/build-backend
         with:
           project-root: ${{ inputs.backend-root }}
           project-folder: ${{ inputs.backend-folder }}
