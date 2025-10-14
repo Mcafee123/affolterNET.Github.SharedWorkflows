@@ -99,11 +99,48 @@ on:
         description: 'Azure Container Registry password'
         required: false
 
+    outputs:
+      version:
+        description: 'The version read from or written to the backend project file'
+        value: ${{ jobs.build.outputs.version }}
+
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}  # Job captures step output
     steps:
+      - name: Build Workflow Started
+        shell: bash
+        run: |
+          echo "🚀 Starting Build Workflow"
+          echo "All inputs received:"
+          echo "  Frontend inputs:"
+          echo "    - build-frontend: ${{ inputs.build-frontend }}"
+          echo "    - frontend-root: ${{ inputs.frontend-root }}"
+          echo "    - frontend-build-command: ${{ inputs.frontend-build-command }}"
+          echo "    - node-version: ${{ inputs.node-version }}"
+          echo "  Backend inputs:"
+          echo "    - backend-root: ${{ inputs.backend-root }}"
+          echo "    - backend-folder: ${{ inputs.backend-folder }}"
+          echo "    - backend-project-file: ${{ inputs.backend-project-file }}"
+          echo "  Docker inputs:"
+          echo "    - image-name: ${{ inputs.image-name }}"
+          echo "    - registry-name: ${{ inputs.registry-name }}"
+          echo "    - dockerfile: ${{ inputs.dockerfile }}"
+          echo "    - push: ${{ inputs.push }}"
+          echo "  Versioning inputs:"
+          echo "    - update-version: ${{ inputs.update-version }}"
+          echo "    - version-script: ${{ inputs.version-script }}"
+          echo "    - scripts-version: ${{ inputs.scripts-version }}"
+          echo "  Terraform inputs:"
+          echo "    - tf-module-path: ${{ inputs.tf-module-path }}"
+          echo "    - tfvars-file: ${{ inputs.tfvars-file }}"
+          echo "  Secrets provided:"
+          echo "    - acr-username: $([ -n '${{ secrets.acr-username }}' ] && echo 'Yes' || echo 'No')"
+          echo "    - acr-password: $([ -n '${{ secrets.acr-password }}' ] && echo 'Yes' || echo 'No')"
+
       - name: Checkout code
         uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/checkout@main
         with:

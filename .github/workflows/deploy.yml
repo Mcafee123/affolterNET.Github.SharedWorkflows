@@ -65,6 +65,33 @@ jobs:
     runs-on: ubuntu-latest
     steps:
 
+    - name: Deploy Workflow Started
+      shell: bash
+      run: |
+        echo "🚀 Starting Deploy and Tag Workflow"
+        echo "All inputs received:"
+        echo "  Docker inputs:"
+        echo "    - image-name: ${{ inputs.image-name }}"
+        echo "    - registry-name: ${{ inputs.registry-name }}"
+        echo "    - version: ${{ inputs.version }}"
+        echo "  Tag inputs:"
+        echo "    - tag-prefix: ${{ inputs.tag-prefix }}"
+        echo "    - tag-script: ${{ inputs.tag-script }}"
+        echo "  Terraform inputs:"
+        echo "    - tf-module-path: ${{ inputs.tf-module-path }}"
+        echo "  Versioning inputs:"
+        echo "    - scripts-version: ${{ inputs.scripts-version }}"
+        echo "  Secrets provided:"
+        echo "    - github-token: $([ -n '${{ secrets.github-token }}' ] && echo 'Yes' || echo 'No')"
+        echo "    - ssh-private-key: $([ -n '${{ secrets.ssh-private-key }}' ] && echo 'Yes' || echo 'No')"
+        echo "    - azure-credentials: $([ -n '${{ secrets.azure-credentials }}' ] && echo 'Yes' || echo 'No')"
+        echo "    - arm-client-id: $([ -n '${{ secrets.arm-client-id }}' ] && echo 'Yes' || echo 'No')"
+        echo "    - arm-client-secret: $([ -n '${{ secrets.arm-client-secret }}' ] && echo 'Yes' || echo 'No')"
+        echo "    - arm-tenant-id: $([ -n '${{ secrets.arm-tenant-id }}' ] && echo 'Yes' || echo 'No')"
+        echo "    - arm-subscription-id: $([ -n '${{ secrets.arm-subscription-id }}' ] && echo 'Yes' || echo 'No')"
+        echo "    - acr-username: $([ -n '${{ secrets.acr-username }}' ] && echo 'Yes' || echo 'No')"
+        echo "    - acr-password: $([ -n '${{ secrets.acr-password }}' ] && echo 'Yes' || echo 'No')"
+
     - name: Checkout code
       uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/checkout@main
 
