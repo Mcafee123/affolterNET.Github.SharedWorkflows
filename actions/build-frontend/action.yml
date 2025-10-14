@@ -30,6 +30,7 @@ runs:
       with:
         node-version: ${{ inputs.node-version }}
         cache: 'npm'
+        cache-dependency-path: ${{ inputs.frontend-root }}/package-lock.json
 
     - name: Install dependencies
       shell: bash
