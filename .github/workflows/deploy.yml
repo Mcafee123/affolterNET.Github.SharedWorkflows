@@ -115,7 +115,11 @@ jobs:
       run: terraform init -backend-config=_backend.hcl
       working-directory: ${{ inputs.tf-module-path }}
       env:
-        ARM_USE_CLI: true
+        ARM_CLIENT_ID: ${{ secrets.arm-client-id }}
+        ARM_CLIENT_SECRET: ${{ secrets.arm-client-secret }}
+        ARM_TENANT_ID: ${{ secrets.arm-tenant-id }}
+        ARM_SUBSCRIPTION_ID: ${{ secrets.arm-subscription-id }}
+        ARM_USE_CLI: false
 
     - name: Terraform Plan
       id: plan
@@ -125,7 +129,11 @@ jobs:
       working-directory: ${{ inputs.tf-module-path }}
       continue-on-error: true
       env:
-        ARM_USE_CLI: true
+        ARM_CLIENT_ID: ${{ secrets.arm-client-id }}
+        ARM_CLIENT_SECRET: ${{ secrets.arm-client-secret }}
+        ARM_TENANT_ID: ${{ secrets.arm-tenant-id }}
+        ARM_SUBSCRIPTION_ID: ${{ secrets.arm-subscription-id }}
+        ARM_USE_CLI: false
 
     - name: Terraform Apply
       id: apply
@@ -135,7 +143,11 @@ jobs:
         echo "apply_status=success" >> $GITHUB_OUTPUT
       working-directory: ${{ inputs.tf-module-path }}
       env:
-        ARM_USE_CLI: true
+        ARM_CLIENT_ID: ${{ secrets.arm-client-id }}
+        ARM_CLIENT_SECRET: ${{ secrets.arm-client-secret }}
+        ARM_TENANT_ID: ${{ secrets.arm-tenant-id }}
+        ARM_SUBSCRIPTION_ID: ${{ secrets.arm-subscription-id }}
+        ARM_USE_CLI: false
 
     - name: Cleanup Terraform plan
       if: always()
