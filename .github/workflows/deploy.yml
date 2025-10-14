@@ -95,12 +95,6 @@ jobs:
     - name: Checkout code
       uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/checkout@main
 
-    - name: Get version scripts
-      uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/get-scripts@main
-      with:
-        scripts-version: ${{ inputs.scripts-version }}
-        github-token: ${{ secrets.github-token }}
-
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v2
       with:
