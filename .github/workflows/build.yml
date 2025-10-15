@@ -44,6 +44,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    name: 'build: ${{ inputs.stage }}'
     outputs:
       version: ${{ steps.version.outputs.version }}  # Job captures step output
     steps:
@@ -85,9 +86,9 @@ jobs:
           echo "    - image-name: ${{ steps.config.outputs.image-name }}"
           echo "    - registry-name: ${{ steps.config.outputs.registry-name }}"
           echo "    - dockerfile: ${{ steps.config.outputs.dockerfile }}"
-          echo "    - push: ${{ steps.config.outputs.push }}"
+          echo "    - push: ${{ inputs.push }}"
           echo "  Versioning inputs:"
-          echo "    - update-version: ${{ steps.config.outputs.update-version }}"
+          echo "    - update-version: ${{ inputs.update-version }}"
           echo "    - version-script: ${{ steps.config.outputs.version-script }}"
           echo "    - scripts-version: ${{ steps.config.outputs.scripts-version }}"
           echo "  Terraform inputs:"
@@ -107,7 +108,7 @@ jobs:
         id: version
         shell: bash
         run: |
-          if [ ${{ steps.config.outputs.update-version }} == true ]; then
+          if [ ${{ inputs.update-version }} == true ]; then
             echo "Updating version in project file..."
             echo "Running: ./${{ steps.config.outputs.version-script }} update ${{ steps.config.outputs.backend-root }}/${{ steps.config.outputs.backend-folder }}/${{ steps.config.outputs.backend-project-file}} ${{ steps.config.outputs.tf-module-path }}/${{ steps.config.outputs.tfvars-file }}"
             ./${{ steps.config.outputs.version-script }} update ${{ steps.config.outputs.backend-root }}/${{ steps.config.outputs.backend-folder }}/${{ steps.config.outputs.backend-project-file}} ${{ steps.config.outputs.tf-module-path }}/${{ steps.config.outputs.tfvars-file }} >> $GITHUB_OUTPUT
@@ -135,7 +136,7 @@ jobs:
           dockerfile: ${{ steps.config.outputs.dockerfile }}
           image-name: ${{ steps.config.outputs.image-name }}
           registry-name: ${{ steps.config.outputs.registry-name }}
-          push: ${{ steps.config.outputs.push }}
+          push: ${{ inputs.push }}
           version-script: ${{ steps.config.outputs.version-script }}
           scripts-version: ${{ steps.config.outputs.scripts-version }}
           acr-username: ${{ secrets.acr-username }}

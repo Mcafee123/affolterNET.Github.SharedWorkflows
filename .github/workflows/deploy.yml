@@ -44,7 +44,7 @@ on:
 
 jobs:
   deploy-and-tag:
-    name: 'deploy version: ${{ inputs.version }}'
+    name: 'deploy: ${{ inputs.version }}'
     runs-on: ubuntu-latest
     steps:
 
