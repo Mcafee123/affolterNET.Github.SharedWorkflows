@@ -94,6 +94,10 @@ runs:
           exit 1
         fi
         
+        # Debug: Show the loaded configuration
+        echo "🔍 Loaded configuration:"
+        echo "$CONFIG" | jq .
+        
         # Extract values using jq and set as outputs
         echo "build-frontend=$(echo '$CONFIG' | jq -r '.frontend.buildFrontend // true')" >> $GITHUB_OUTPUT
         echo "frontend-root=$(echo '$CONFIG' | jq -r '.frontend.root // "frontend"')" >> $GITHUB_OUTPUT
@@ -116,6 +120,31 @@ runs:
         
         echo "tag-script=$(echo '$CONFIG' | jq -r '.github.tagScript')" >> $GITHUB_OUTPUT
         echo "tag-prefix=$(echo '$CONFIG' | jq -r '.github.tagPrefix')" >> $GITHUB_OUTPUT
+        
+        # Debug: Show all extracted values
+        echo "🔍 Extracted values:"
+        echo "  Frontend:"
+        echo "    - buildFrontend: $(echo '$CONFIG' | jq -r '.frontend.buildFrontend // true')"
+        echo "    - root: $(echo '$CONFIG' | jq -r '.frontend.root // "frontend"')"
+        echo "    - buildCommand: $(echo '$CONFIG' | jq -r '.frontend.buildCommand // "npm run build"')"
+        echo "    - nodeVersion: $(echo '$CONFIG' | jq -r '.frontend.nodeVersion // "20.x"')"
+        echo "  Backend:"
+        echo "    - root: $(echo '$CONFIG' | jq -r '.backend.root')"
+        echo "    - folder: $(echo '$CONFIG' | jq -r '.backend.folder')"
+        echo "    - projectFile: $(echo '$CONFIG' | jq -r '.backend.projectFile')"
+        echo "  Docker:"
+        echo "    - imageName: $(echo '$CONFIG' | jq -r '.docker.imageName')"
+        echo "    - registryName: $(echo '$CONFIG' | jq -r '.docker.registryName')"
+        echo "    - dockerfile: $(echo '$CONFIG' | jq -r '.docker.dockerfile // "Dockerfile"')"
+        echo "  Versioning:"
+        echo "    - script: $(echo '$CONFIG' | jq -r '.versioning.script')"
+        echo "    - scriptsVersion: $(echo '$CONFIG' | jq -r '.versioning.scriptsVersion // "main"')"
+        echo "  Terraform:"
+        echo "    - modulePath: $(echo '$CONFIG' | jq -r '.terraform.modulePath')"
+        echo "    - tfvarsFile: $(echo '$CONFIG' | jq -r '.terraform.tfvarsFile')"
+        echo "  GitHub:"
+        echo "    - tagScript: $(echo '$CONFIG' | jq -r '.github.tagScript')"
+        echo "    - tagPrefix: $(echo '$CONFIG' | jq -r '.github.tagPrefix')"
         
     - name: Check for open PR to main
       id: check-pr
