@@ -178,6 +178,9 @@ jobs:
     
     steps:
 
+    - name: Checkout code
+      uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/checkout@main
+
     # Load configuration
     - name: Load configuration
       id: config
