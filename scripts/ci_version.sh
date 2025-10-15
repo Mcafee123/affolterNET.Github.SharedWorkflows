@@ -136,7 +136,7 @@ update_tfvars_version() {
 
 # Function to push with retry and pull
 push_with_retry() {
-    local max_attempts=3
+    local max_attempts=5
     local attempt=1
     local delay=2
     
@@ -148,17 +148,47 @@ push_with_retry() {
             return 0
         else
             if [ $attempt -lt $max_attempts ]; then
-                log "⚠️ Push failed, pulling latest changes and retrying in ${delay}s..."
+                log "⚠️ Push failed, fetching and rebasing latest changes..."
                 sleep $delay
                 
-                # Pull and rebase any new changes
-                if git pull --rebase origin $GITHUB_HEAD_REF >&2 2>/dev/null; then
-                    log "✅ Pulled and rebased latest changes"
-                else
-                    log "ℹ️ No changes to pull or rebase failed, continuing..."
+                # First, fetch the latest remote state
+                log "🔄 Fetching latest remote changes..."
+                if ! git fetch origin $GITHUB_HEAD_REF >&2; then
+                    log "⚠️ Failed to fetch remote changes, retrying push anyway..."
+                    delay=$((delay + 1))
+                    attempt=$((attempt + 1))
+                    continue
                 fi
                 
-                delay=$((delay * 2))  # Exponential backoff
+                # Check if we're behind the remote
+                local local_commit=$(git rev-parse HEAD)
+                local remote_commit=$(git rev-parse origin/$GITHUB_HEAD_REF 2>/dev/null || echo "")
+                
+                if [ "$local_commit" != "$remote_commit" ] && [ -n "$remote_commit" ]; then
+                    log "🔄 Local branch diverged from remote, rebasing our changes..."
+                    
+                    # Rebase our commit on top of the remote
+                    if git rebase origin/$GITHUB_HEAD_REF >&2; then
+                        log "✅ Successfully rebased changes on remote commits"
+                    else
+                        log "❌ Rebase failed - this shouldn't happen with different files"
+                        log "🔧 Attempting to abort rebase and continue with original commit..."
+                        git rebase --abort >&2 2>/dev/null || true
+                        
+                        # As fallback, try a merge instead of rebase
+                        log "🔄 Trying merge strategy instead..."
+                        if git merge origin/$GITHUB_HEAD_REF --no-edit >&2; then
+                            log "✅ Successfully merged remote changes"
+                        else
+                            log "❌ Merge also failed, skipping this retry..."
+                            git merge --abort >&2 2>/dev/null || true
+                        fi
+                    fi
+                else
+                    log "ℹ️ Local and remote commits are the same or no remote branch exists"
+                fi
+                
+                delay=$((delay + 1))  # Linear backoff
                 attempt=$((attempt + 1))
             else
                 log "❌ Failed to push changes after $max_attempts attempts"
