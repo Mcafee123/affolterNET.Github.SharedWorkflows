@@ -339,15 +339,16 @@ main() {
             # Commit and push the version change
             if commit_and_push_version "$project_file" "$tfvars_file" "$current_version" "$new_version"; then
                 log "📋 Final version: $new_version (committed and pushed)"
+                
+                # Output for GitHub Actions - only on successful push
+                echo "version=$new_version"
+                echo "version_changed=true"
+                echo "old_version=$current_version"
+                echo "docker_tag=$new_version"
             else
-                log "⚠️ Version updated but failed to push to GitHub"
+                log "❌ Version updated but failed to push to GitHub - failing build"
+                exit 1
             fi
-            
-            # Output for GitHub Actions
-            echo "version=$new_version"
-            echo "version_changed=true"
-            echo "old_version=$current_version"
-            echo "docker_tag=$new_version"
         else
             log "Version differs from main branch, no update needed"
             log "📋 Final version: $current_version (unchanged)"
