@@ -99,52 +99,52 @@ runs:
         echo "$CONFIG" | jq .
         
         # Extract values using jq and set as outputs
-        echo "build-frontend=$(echo '$CONFIG' | jq -r '.frontend.buildFrontend // true')" >> $GITHUB_OUTPUT
-        echo "frontend-root=$(echo '$CONFIG' | jq -r '.frontend.root // "frontend"')" >> $GITHUB_OUTPUT
-        echo "frontend-build-command=$(echo '$CONFIG' | jq -r '.frontend.buildCommand // "npm run build"')" >> $GITHUB_OUTPUT
-        echo "node-version=$(echo '$CONFIG' | jq -r '.frontend.nodeVersion // "20.x"')" >> $GITHUB_OUTPUT
+        echo "build-frontend=$(echo "$CONFIG" | jq -r '.frontend.buildFrontend // true')" >> $GITHUB_OUTPUT
+        echo "frontend-root=$(echo "$CONFIG" | jq -r '.frontend.root // "frontend"')" >> $GITHUB_OUTPUT
+        echo "frontend-build-command=$(echo "$CONFIG" | jq -r '.frontend.buildCommand // "npm run build"')" >> $GITHUB_OUTPUT
+        echo "node-version=$(echo "$CONFIG" | jq -r '.frontend.nodeVersion // "20.x"')" >> $GITHUB_OUTPUT
         
-        echo "backend-root=$(echo '$CONFIG' | jq -r '.backend.root')" >> $GITHUB_OUTPUT
-        echo "backend-folder=$(echo '$CONFIG' | jq -r '.backend.folder')" >> $GITHUB_OUTPUT
-        echo "backend-project-file=$(echo '$CONFIG' | jq -r '.backend.projectFile')" >> $GITHUB_OUTPUT
+        echo "backend-root=$(echo "$CONFIG" | jq -r '.backend.root')" >> $GITHUB_OUTPUT
+        echo "backend-folder=$(echo "$CONFIG" | jq -r '.backend.folder')" >> $GITHUB_OUTPUT
+        echo "backend-project-file=$(echo "$CONFIG" | jq -r '.backend.projectFile')" >> $GITHUB_OUTPUT
         
-        echo "image-name=$(echo '$CONFIG' | jq -r '.docker.imageName')" >> $GITHUB_OUTPUT
-        echo "registry-name=$(echo '$CONFIG' | jq -r '.docker.registryName')" >> $GITHUB_OUTPUT
-        echo "dockerfile=$(echo '$CONFIG' | jq -r '.docker.dockerfile // "Dockerfile"')" >> $GITHUB_OUTPUT
+        echo "image-name=$(echo "$CONFIG" | jq -r '.docker.imageName')" >> $GITHUB_OUTPUT
+        echo "registry-name=$(echo "$CONFIG" | jq -r '.docker.registryName')" >> $GITHUB_OUTPUT
+        echo "dockerfile=$(echo "$CONFIG" | jq -r '.docker.dockerfile // "Dockerfile"')" >> $GITHUB_OUTPUT
         
-        echo "version-script=$(echo '$CONFIG' | jq -r '.versioning.script')" >> $GITHUB_OUTPUT
-        echo "scripts-version=$(echo '$CONFIG' | jq -r '.versioning.scriptsVersion // "main"')" >> $GITHUB_OUTPUT
+        echo "version-script=$(echo "$CONFIG" | jq -r '.versioning.script')" >> $GITHUB_OUTPUT
+        echo "scripts-version=$(echo "$CONFIG" | jq -r '.versioning.scriptsVersion // "main"')" >> $GITHUB_OUTPUT
         
-        echo "tf-module-path=$(echo '$CONFIG' | jq -r '.terraform.modulePath')" >> $GITHUB_OUTPUT
-        echo "tfvars-file=$(echo '$CONFIG' | jq -r '.terraform.tfvarsFile')" >> $GITHUB_OUTPUT
+        echo "tf-module-path=$(echo "$CONFIG" | jq -r '.terraform.modulePath')" >> $GITHUB_OUTPUT
+        echo "tfvars-file=$(echo "$CONFIG" | jq -r '.terraform.tfvarsFile')" >> $GITHUB_OUTPUT
         
-        echo "tag-script=$(echo '$CONFIG' | jq -r '.github.tagScript')" >> $GITHUB_OUTPUT
-        echo "tag-prefix=$(echo '$CONFIG' | jq -r '.github.tagPrefix')" >> $GITHUB_OUTPUT
+        echo "tag-script=$(echo "$CONFIG" | jq -r '.github.tagScript')" >> $GITHUB_OUTPUT
+        echo "tag-prefix=$(echo "$CONFIG" | jq -r '.github.tagPrefix')" >> $GITHUB_OUTPUT
         
         # Debug: Show all extracted values
         echo "🔍 Extracted values:"
         echo "  Frontend:"
-        echo "    - buildFrontend: $(echo '$CONFIG' | jq -r '.frontend.buildFrontend // true')"
-        echo "    - root: $(echo '$CONFIG' | jq -r '.frontend.root // "frontend"')"
-        echo "    - buildCommand: $(echo '$CONFIG' | jq -r '.frontend.buildCommand // "npm run build"')"
-        echo "    - nodeVersion: $(echo '$CONFIG' | jq -r '.frontend.nodeVersion // "20.x"')"
+        echo "    - buildFrontend: $(echo "$CONFIG" | jq -r '.frontend.buildFrontend // true')"
+        echo "    - root: $(echo "$CONFIG" | jq -r '.frontend.root // "frontend"')"
+        echo "    - buildCommand: $(echo "$CONFIG" | jq -r '.frontend.buildCommand // "npm run build"')"
+        echo "    - nodeVersion: $(echo "$CONFIG" | jq -r '.frontend.nodeVersion // "20.x"')"
         echo "  Backend:"
-        echo "    - root: $(echo '$CONFIG' | jq -r '.backend.root')"
-        echo "    - folder: $(echo '$CONFIG' | jq -r '.backend.folder')"
-        echo "    - projectFile: $(echo '$CONFIG' | jq -r '.backend.projectFile')"
+        echo "    - root: $(echo "$CONFIG" | jq -r '.backend.root')"
+        echo "    - folder: $(echo "$CONFIG" | jq -r '.backend.folder')"
+        echo "    - projectFile: $(echo "$CONFIG" | jq -r '.backend.projectFile')"
         echo "  Docker:"
-        echo "    - imageName: $(echo '$CONFIG' | jq -r '.docker.imageName')"
-        echo "    - registryName: $(echo '$CONFIG' | jq -r '.docker.registryName')"
-        echo "    - dockerfile: $(echo '$CONFIG' | jq -r '.docker.dockerfile // "Dockerfile"')"
+        echo "    - imageName: $(echo "$CONFIG" | jq -r '.docker.imageName')"
+        echo "    - registryName: $(echo "$CONFIG" | jq -r '.docker.registryName')"
+        echo "    - dockerfile: $(echo "$CONFIG" | jq -r '.docker.dockerfile // "Dockerfile"')"
         echo "  Versioning:"
-        echo "    - script: $(echo '$CONFIG' | jq -r '.versioning.script')"
-        echo "    - scriptsVersion: $(echo '$CONFIG' | jq -r '.versioning.scriptsVersion // "main"')"
+        echo "    - script: $(echo "$CONFIG" | jq -r '.versioning.script')"
+        echo "    - scriptsVersion: $(echo "$CONFIG" | jq -r '.versioning.scriptsVersion // "main"')"
         echo "  Terraform:"
-        echo "    - modulePath: $(echo '$CONFIG' | jq -r '.terraform.modulePath')"
-        echo "    - tfvarsFile: $(echo '$CONFIG' | jq -r '.terraform.tfvarsFile')"
+        echo "    - modulePath: $(echo "$CONFIG" | jq -r '.terraform.modulePath')"
+        echo "    - tfvarsFile: $(echo "$CONFIG" | jq -r '.terraform.tfvarsFile')"
         echo "  GitHub:"
-        echo "    - tagScript: $(echo '$CONFIG' | jq -r '.github.tagScript')"
-        echo "    - tagPrefix: $(echo '$CONFIG' | jq -r '.github.tagPrefix')"
+        echo "    - tagScript: $(echo "$CONFIG" | jq -r '.github.tagScript')"
+        echo "    - tagPrefix: $(echo "$CONFIG" | jq -r '.github.tagPrefix')"
         
     - name: Check for open PR to main
       id: check-pr
