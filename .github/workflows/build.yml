@@ -119,7 +119,7 @@ jobs:
           fi
 
       - name: Build Frontend
-        if: ${{ steps.config.outputs.build-frontend == true }}
+        if: ${{ steps.config.outputs.build-frontend == 'true' }}
         uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/build-frontend@main
         with:
           frontend-root: ${{ steps.config.outputs.frontend-root }}
