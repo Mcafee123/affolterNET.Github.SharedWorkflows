@@ -66,9 +66,9 @@ jobs:
         if: steps.config.outputs.pr-running-to-main == 'true'
         run: |
           echo "⚠️ Skipping build - PR is running to main"
-          exit 0
 
       - name: Build Workflow Started
+        if: steps.config.outputs.pr-running-to-main != 'true'
         shell: bash
         run: |
           echo "🚀 Starting Build Workflow"
@@ -99,12 +99,14 @@ jobs:
           echo "    - acr-password: $([ -n '${{ secrets.acr-password }}' ] && echo 'Yes' || echo 'No')"
 
       - name: Get version scripts
+        if: steps.config.outputs.pr-running-to-main != 'true'
         uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/get-scripts@main
         with:
           scripts-version: ${{ steps.config.outputs.scripts-version }}
           github-token: ${{ github.token }}
 
       - name: Get version from project file
+        if: steps.config.outputs.pr-running-to-main != 'true'
         id: version
         shell: bash
         run: |
@@ -119,7 +121,7 @@ jobs:
           fi
 
       - name: Build Frontend
-        if: ${{ steps.config.outputs.build-frontend == 'true' }}
+        if: ${{ steps.config.outputs.pr-running-to-main != 'true' && steps.config.outputs.build-frontend == 'true' }}
         uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/build-frontend@main
         with:
           frontend-root: ${{ steps.config.outputs.frontend-root }}
@@ -127,6 +129,7 @@ jobs:
           node-version: ${{ steps.config.outputs.node-version }}
 
       - name: Build Backend
+        if: steps.config.outputs.pr-running-to-main != 'true'
         uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/build-backend@main
         with:
           version: ${{ steps.version.outputs.version }}
