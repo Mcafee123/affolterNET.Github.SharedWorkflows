@@ -106,7 +106,7 @@ runs:
         echo "$CONFIG" | jq .
         
         # Extract values using jq and set as outputs
-        echo "build-frontend=$(echo "$CONFIG" | jq '.frontend.buildFrontend // true')" >> $GITHUB_OUTPUT
+        echo "build-frontend=$(echo "$CONFIG" | jq -r '.frontend.buildFrontend // true')" >> $GITHUB_OUTPUT
         echo "frontend-root=$(echo "$CONFIG" | jq -r '.frontend.root // "frontend"')" >> $GITHUB_OUTPUT
         echo "frontend-build-command=$(echo "$CONFIG" | jq -r '.frontend.buildCommand // "npm run build"')" >> $GITHUB_OUTPUT
         echo "node-version=$(echo "$CONFIG" | jq -r '.frontend.nodeVersion // "20.x"')" >> $GITHUB_OUTPUT
@@ -131,7 +131,7 @@ runs:
         # Debug: Show all extracted values
         echo "🔍 Extracted values:"
         echo "  Frontend:"
-        echo "    - buildFrontend: $(echo "$CONFIG" | jq '.frontend.buildFrontend // true')"
+        echo "    - buildFrontend: $(echo "$CONFIG" | jq -r '.frontend.buildFrontend // true')"
         echo "    - root: $(echo "$CONFIG" | jq -r '.frontend.root // "frontend"')"
         echo "    - buildCommand: $(echo "$CONFIG" | jq -r '.frontend.buildCommand // "npm run build"')"
         echo "    - nodeVersion: $(echo "$CONFIG" | jq -r '.frontend.nodeVersion // "20.x"')"
