@@ -69,12 +69,22 @@ runs:
     run: |
       echo "🚀 Starting Build Backend Action"
       echo "All inputs received:"
-      echo "  - project-root: ${{ inputs.project-root }}"
-      echo "  - project-folder: ${{ inputs.project-folder }}"
-      echo "  - version: ${{ inputs.version }}"
-      echo "  - push: ${{ inputs.push }}"
-      echo "  - registry-name: ${{ inputs.registry-name }}"
-      echo "  - image-name: ${{ inputs.image-name }}"
+      echo "  Backend inputs:"
+      echo "    - project-root: ${{ inputs.project-root }}"
+      echo "    - project-folder: ${{ inputs.project-folder }}"
+      echo "    - project-file: ${{ inputs.project-file }}"
+      echo "  Docker inputs:"
+      echo "    - version: ${{ inputs.version }}"
+      echo "    - image-name: ${{ inputs.image-name }}"
+      echo "    - registry-name: ${{ inputs.registry-name }}"
+      echo "    - dockerfile: ${{ inputs.dockerfile }}"
+      echo "    - push: ${{ inputs.push }}"
+      echo "  Versioning inputs:"
+      echo "    - version-script: ${{ inputs.version-script }}"
+      echo "    - scripts-version: ${{ inputs.scripts-version }}"
+      echo "  ACR inputs:"
+      echo "    - acr-username: $([ -n '${{ inputs.acr-username }}' ] && echo 'Provided' || echo 'Not provided')"
+      echo "    - acr-password: $([ -n '${{ inputs.acr-password }}' ] && echo 'Provided' || echo 'Not provided')"
 
   - name: Log in to Azure Container Registry
     if: inputs.push == 'true'

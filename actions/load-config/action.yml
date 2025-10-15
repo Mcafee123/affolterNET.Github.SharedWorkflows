@@ -75,6 +75,13 @@ outputs:
 runs:
   using: 'composite'
   steps:
+    - name: Load Configuration Action Started
+      shell: bash
+      run: |
+        echo "🚀 Starting Load Configuration Action"
+        echo "All inputs received:"
+        echo "  - config-file: ${{ inputs.config-file }}"
+
     - name: Load and parse configuration
       id: parse
       shell: bash
