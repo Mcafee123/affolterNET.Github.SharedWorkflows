@@ -2,6 +2,7 @@
 
 # Simple CI Version Management Script
 # Reads current version or updates patch version if same as main branch
+# Always syncs tfvars with the current version (whether updated or not)
 # 
 # Usage:
 #   ./ci_version.sh read <project_file>
@@ -198,23 +199,32 @@ push_with_retry() {
     done
 }
 
-# Function to commit and push version changes
-commit_and_push_version() {
+# Function to commit and push changes
+commit_and_push_changes() {
     local project_file="$1"
     local tfvars_file="$2"
     local old_version="$3"
     local new_version="$4"
+    local version_changed="$5"
+    local tfvars_changed="$6"
     
-    log "📝 Committing version change to Git..."
+    log "📝 Committing changes to Git..."
     
     # Configure git (required for GitHub Actions)
     git config --local user.email "action@github.com"
     git config --local user.name "GitHub Action (ci_version.sh)"
     
     # Add the changed files
-    git add "$project_file"
-    if [ -f "$tfvars_file" ] && ! git diff --quiet "$tfvars_file" 2>/dev/null; then
+    local files_added=()
+    if [ "$version_changed" = "true" ]; then
+        git add "$project_file"
+        files_added+=("$project_file")
+        log "Added project file to git: $project_file"
+    fi
+    
+    if [ "$tfvars_changed" = "true" ] && [ -f "$tfvars_file" ]; then
         git add "$tfvars_file"
+        files_added+=("$tfvars_file")
         log "Added tfvars file to git: $tfvars_file"
     fi
     
@@ -224,17 +234,30 @@ commit_and_push_version() {
         return 0
     fi
     
-    # Commit the version change
-    local commit_message="chore: bump version from $old_version to $new_version
+    # Create appropriate commit message based on what changed
+    local commit_message
+    if [ "$version_changed" = "true" ] && [ "$tfvars_changed" = "true" ]; then
+        commit_message="chore: bump version from $old_version to $new_version and sync tfvars
+
+- Automated version bump and tfvars sync by ci_version.sh
+- Component: $(basename "$(dirname "$project_file")")
+- Files updated: ${files_added[*]}"
+    elif [ "$version_changed" = "true" ]; then
+        commit_message="chore: bump version from $old_version to $new_version
 
 - Automated version bump by ci_version.sh
 - Component: $(basename "$(dirname "$project_file")")
-- Files updated:
-  - $project_file
-  - $tfvars_file"
+- Files updated: ${files_added[*]}"
+    else
+        commit_message="chore: sync tfvars with version $new_version
+
+- Automated tfvars sync by ci_version.sh
+- Component: $(basename "$(dirname "$project_file")")
+- Files updated: ${files_added[*]}"
+    fi
     
     if git commit -m "$commit_message" >&2; then
-        log "✅ Version change committed successfully"
+        log "✅ Changes committed successfully"
         
         # Push the changes back to the current branch with retry mechanism
         if push_with_retry; then
@@ -244,7 +267,7 @@ commit_and_push_version() {
             return 1
         fi
     else
-        log "❌ Failed to commit version changes"
+        log "❌ Failed to commit changes"
         return 1
     fi
 }
@@ -317,47 +340,65 @@ main() {
             main_version="$current_version"
         fi
         
+        # Initialize tracking variables
+        local version_changed=false
+        local tfvars_changed=false
+        local final_version="$current_version"
+        
         # Determine if patch update is needed
         if [ "$current_version" = "$main_version" ]; then
             # Version is same as main, bump patch
-            local new_version=$(bump_patch_version "$current_version")
-            log "Version matches main branch, bumping patch: $current_version → $new_version"
+            final_version=$(bump_patch_version "$current_version")
+            log "Version matches main branch, bumping patch: $current_version → $final_version"
             
-            update_version_in_file "$project_file" "$new_version"
+            update_version_in_file "$project_file" "$final_version"
+            version_changed=true
+        else
+            log "Version differs from main branch, no version update needed"
+            log "Current version: $current_version (unchanged)"
+        fi
+        
+        # Always update terraform.tfvars with the final version (if tfvars file provided)
+        if [ -n "$tfvars_file" ]; then
+            log "Checking if tfvars needs to be updated with version: $final_version"
             
-            # Update terraform.tfvars with new version (if tfvars file provided)
-            if [ -n "$tfvars_file" ]; then
-                if update_tfvars_version "$tfvars_file" "$new_version"; then
-                    log "✅ Tfvars updated successfully"
+            # Check if tfvars already has the correct version to avoid unnecessary commits
+            if [ -f "$tfvars_file" ] && grep -q ":$final_version\"" "$tfvars_file"; then
+                log "✅ Tfvars already has correct version: $final_version"
+            else
+                if update_tfvars_version "$tfvars_file" "$final_version"; then
+                    log "✅ Tfvars updated successfully to version: $final_version"
+                    tfvars_changed=true
                 else
                     log "⚠️ Failed to update tfvars file"
                 fi
-            else
-                log "ℹ️ No tfvars file provided, skipping tfvars update"
             fi
-            
-            # Commit and push the version change
-            if commit_and_push_version "$project_file" "$tfvars_file" "$current_version" "$new_version"; then
-                log "📋 Final version: $new_version (committed and pushed)"
+        else
+            log "ℹ️ No tfvars file provided, skipping tfvars update"
+        fi
+        
+        # Commit and push changes if any files were modified
+        if [ "$version_changed" = true ] || [ "$tfvars_changed" = true ]; then
+            if commit_and_push_changes "$project_file" "$tfvars_file" "$current_version" "$final_version" "$version_changed" "$tfvars_changed"; then
+                log "📋 Final version: $final_version (committed and pushed)"
                 
                 # Output for GitHub Actions - only on successful push
-                echo "version=$new_version"
-                echo "version_changed=true"
+                echo "version=$final_version"
+                echo "version_changed=$version_changed"
                 echo "old_version=$current_version"
-                echo "docker_tag=$new_version"
+                echo "docker_tag=$final_version"
             else
-                log "❌ Version updated but failed to push to GitHub - failing build"
+                log "❌ Changes made but failed to push to GitHub - failing build"
                 exit 1
             fi
         else
-            log "Version differs from main branch, no update needed"
-            log "📋 Final version: $current_version (unchanged)"
+            log "📋 Final version: $final_version (no changes needed)"
             
             # Output for GitHub Actions
-            echo "version=$current_version"
-            echo "version_changed=false"
+            echo "version=$final_version"
+            echo "version_changed=$version_changed"
             echo "old_version=$current_version"
-            echo "docker_tag=$current_version"
+            echo "docker_tag=$final_version"
         fi
     fi
 }
