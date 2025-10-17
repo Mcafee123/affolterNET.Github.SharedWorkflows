@@ -19,6 +19,11 @@ on:
         description: "Tag to deploy"
         required: true
         type: string
+      run-security-scan:
+        description: "Whether to run security scan after deployment"
+        required: false
+        type: boolean
+        default: false
 
     secrets:
 
@@ -171,7 +176,7 @@ jobs:
   
   security-scan:
     name: Security Scan
-    needs: deploy-and-tag
+    if: ${{ inputs.run-security-scan }}
     runs-on: ubuntu-latest
     
     steps:
