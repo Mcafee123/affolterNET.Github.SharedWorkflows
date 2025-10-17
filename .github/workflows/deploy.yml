@@ -5,8 +5,12 @@ on:
     inputs:
 
       # Configuration
-      config-file:
-        description: "Path to configuration JSON file"
+      build-file:
+        description: "Path to build configuration JSON file"
+        required: true
+        type: string
+      deploy-file:
+        description: "Path to deployment configuration JSON file"
         required: true
         type: string
 
@@ -56,7 +60,8 @@ jobs:
       id: config
       uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/load-config@main
       with:
-        config-file: ${{ inputs.config-file }}
+        build-file: ${{ inputs.build-file }}
+        deploy-file: ${{ inputs.deploy-file }}
 
     - name: Deploy Workflow Started
       shell: bash
@@ -186,7 +191,8 @@ jobs:
       id: config
       uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/load-config@main
       with:
-        config-file: ${{ inputs.config-file }}
+        build-file: ${{ inputs.build-file }}
+        deploy-file: ${{ inputs.deploy-file }}
 
     - name: Debug ACR credentials
       run: |

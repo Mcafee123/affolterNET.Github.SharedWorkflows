@@ -5,14 +5,12 @@ on:
     inputs:
 
       # Configuration
-      config-file:
-        description: "Path to configuration JSON file"
+      build-file:
+        description: "Path to build configuration JSON file"
         required: true
         type: string
-
-      # Build options
-      stage:
-        description: "Build stage: develop, pr, merge"
+      deploy-file:
+        description: "Path to deployment configuration JSON file"
         required: true
         type: string
 
@@ -44,7 +42,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    name: 'build: ${{ inputs.stage }}'
+    name: 'build: ${{ github.head_ref || github.ref_name }}'
     outputs:
       version: ${{ steps.version.outputs.version }}  # Job captures step output
     steps:
@@ -59,7 +57,8 @@ jobs:
         id: config
         uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/load-config@main
         with:
-          config-file: ${{ inputs.config-file }}
+          build-file: ${{ inputs.build-file }}
+          deploy-file: ${{ inputs.deploy-file }}
 
       # Skip if PR is running to main
       - name: Check if should skip

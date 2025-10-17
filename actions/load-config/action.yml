@@ -3,10 +3,12 @@ name: 'Load Application Configuration'
 description: 'Loads and parses application configuration from JSON file'
 
 inputs:
-  config-file:
+  build-file:
     description: 'Path to configuration JSON file'
     required: true
-    default: '.github/config/app.json'
+  deploy-file:
+    description: 'Path to deployment configuration JSON file'
+    required: true
 
 outputs:
   # Frontend outputs
@@ -80,78 +82,93 @@ runs:
       run: |
         echo "🚀 Starting Load Configuration Action"
         echo "All inputs received:"
-        echo "  - config-file: ${{ inputs.config-file }}"
+        echo "  - build-file: ${{ inputs.build-file }}"
+        echo "  - deploy-file: ${{ inputs.deploy-file }}"
 
     - name: Load and parse configuration
       id: parse
       shell: bash
       run: |
-        # Check if config file exists
-        if [ ! -f "${{ inputs.config-file }}" ]; then
-          echo "❌ Configuration file not found: ${{ inputs.config-file }}"
+        # Check if build config file exists
+        if [ ! -f "${{ inputs.build-file }}" ]; then
+          echo "❌ Build configuration file not found: ${{ inputs.build-file }}"
+          exit 1
+        fi
+
+        # Check if deploy config file exists
+        if [ ! -f "${{ inputs.deploy-file }}" ]; then
+          echo "❌ Deploy configuration file not found: ${{ inputs.deploy-file }}"
           exit 1
         fi
         
-        # Load JSON file
-        CONFIG=$(cat "${{ inputs.config-file }}")
+        # Load JSON files
+        BUILD_CONFIG=$(cat "${{ inputs.build-file }}")
+        DEPLOY_CONFIG=$(cat "${{ inputs.deploy-file }}")
         
         # Validate JSON
-        if ! echo "$CONFIG" | jq empty 2>/dev/null; then
-          echo "❌ Invalid JSON in configuration file: ${{ inputs.config-file }}"
+        if ! echo "$BUILD_CONFIG" | jq empty 2>/dev/null; then
+          echo "❌ Invalid JSON in build configuration file: ${{ inputs.build-file }}"
+          exit 1
+        fi
+
+        # Validate JSON
+        if ! echo "$DEPLOY_CONFIG" | jq empty 2>/dev/null; then
+          echo "❌ Invalid JSON in deploy configuration file: ${{ inputs.deploy-file }}"
           exit 1
         fi
         
         # Debug: Show the loaded configuration
         echo "🔍 Loaded configuration:"
-        echo "$CONFIG" | jq .
+        echo "$BUILD_CONFIG" | jq .
+        echo "$DEPLOY_CONFIG" | jq .
         
         # Extract values using jq and set as outputs
-        echo "build-frontend=$(echo "$CONFIG" | jq -r '.frontend.buildFrontend')" >> $GITHUB_OUTPUT
-        echo "frontend-root=$(echo "$CONFIG" | jq -r '.frontend.root // "frontend"')" >> $GITHUB_OUTPUT
-        echo "frontend-build-command=$(echo "$CONFIG" | jq -r '.frontend.buildCommand // "npm run build"')" >> $GITHUB_OUTPUT
-        echo "node-version=$(echo "$CONFIG" | jq -r '.frontend.nodeVersion // "20.x"')" >> $GITHUB_OUTPUT
+        echo "build-frontend=$(echo "$BUILD_CONFIG" | jq -r '.frontend.buildFrontend')" >> $GITHUB_OUTPUT
+        echo "frontend-root=$(echo "$BUILD_CONFIG" | jq -r '.frontend.root // "frontend"')" >> $GITHUB_OUTPUT
+        echo "frontend-build-command=$(echo "$BUILD_CONFIG" | jq -r '.frontend.buildCommand // "npm run build"')" >> $GITHUB_OUTPUT
+        echo "node-version=$(echo "$BUILD_CONFIG" | jq -r '.frontend.nodeVersion // "20.x"')" >> $GITHUB_OUTPUT
         
-        echo "backend-root=$(echo "$CONFIG" | jq -r '.backend.root')" >> $GITHUB_OUTPUT
-        echo "backend-folder=$(echo "$CONFIG" | jq -r '.backend.folder')" >> $GITHUB_OUTPUT
-        echo "backend-project-file=$(echo "$CONFIG" | jq -r '.backend.projectFile')" >> $GITHUB_OUTPUT
+        echo "backend-root=$(echo "$BUILD_CONFIG" | jq -r '.backend.root')" >> $GITHUB_OUTPUT
+        echo "backend-folder=$(echo "$BUILD_CONFIG" | jq -r '.backend.folder')" >> $GITHUB_OUTPUT
+        echo "backend-project-file=$(echo "$BUILD_CONFIG" | jq -r '.backend.projectFile')" >> $GITHUB_OUTPUT
         
-        echo "image-name=$(echo "$CONFIG" | jq -r '.docker.imageName')" >> $GITHUB_OUTPUT
-        echo "registry-name=$(echo "$CONFIG" | jq -r '.docker.registryName')" >> $GITHUB_OUTPUT
-        echo "dockerfile=$(echo "$CONFIG" | jq -r '.docker.dockerfile // "Dockerfile"')" >> $GITHUB_OUTPUT
+        echo "image-name=$(echo "$BUILD_CONFIG" | jq -r '.docker.imageName')" >> $GITHUB_OUTPUT
+        echo "registry-name=$(echo "$BUILD_CONFIG" | jq -r '.docker.registryName')" >> $GITHUB_OUTPUT
+        echo "dockerfile=$(echo "$BUILD_CONFIG" | jq -r '.docker.dockerfile // "Dockerfile"')" >> $GITHUB_OUTPUT
         
-        echo "version-script=$(echo "$CONFIG" | jq -r '.versioning.script')" >> $GITHUB_OUTPUT
-        echo "scripts-version=$(echo "$CONFIG" | jq -r '.versioning.scriptsVersion // "main"')" >> $GITHUB_OUTPUT
-        
-        echo "tf-module-path=$(echo "$CONFIG" | jq -r '.terraform.modulePath')" >> $GITHUB_OUTPUT
-        echo "tfvars-file=$(echo "$CONFIG" | jq -r '.terraform.tfvarsFile')" >> $GITHUB_OUTPUT
-        
-        echo "tag-script=$(echo "$CONFIG" | jq -r '.github.tagScript')" >> $GITHUB_OUTPUT
-        echo "tag-prefix=$(echo "$CONFIG" | jq -r '.github.tagPrefix')" >> $GITHUB_OUTPUT
+        echo "version-script=$(echo "$BUILD_CONFIG" | jq -r '.versioning.script')" >> $GITHUB_OUTPUT
+        echo "scripts-version=$(echo "$BUILD_CONFIG" | jq -r '.versioning.scriptsVersion // "main"')" >> $GITHUB_OUTPUT
+
+        echo "tf-module-path=$(echo "$DEPLOY_CONFIG" | jq -r '.${{ github.head_ref || github.ref_name }}.modulePath')" >> $GITHUB_OUTPUT
+        echo "tfvars-file=$(echo "$DEPLOY_CONFIG" | jq -r '.${{ github.head_ref || github.ref_name }}.tfvarsFile')" >> $GITHUB_OUTPUT
+
+        echo "tag-script=$(echo "$BUILD_CONFIG" | jq -r '.github.tagScript')" >> $GITHUB_OUTPUT
+        echo "tag-prefix=$(echo "$BUILD_CONFIG" | jq -r '.github.tagPrefix')" >> $GITHUB_OUTPUT
         
         # Debug: Show all extracted values
         echo "🔍 Extracted values:"
         echo "  Frontend:"
-        echo "    - buildFrontend: $(echo "$CONFIG" | jq -r '.frontend.buildFrontend')"
-        echo "    - root: $(echo "$CONFIG" | jq -r '.frontend.root // "frontend"')"
-        echo "    - buildCommand: $(echo "$CONFIG" | jq -r '.frontend.buildCommand // "npm run build"')"
-        echo "    - nodeVersion: $(echo "$CONFIG" | jq -r '.frontend.nodeVersion // "20.x"')"
+        echo "    - buildFrontend: $(echo "$BUILD_CONFIG" | jq -r '.frontend.buildFrontend')"
+        echo "    - root: $(echo "$BUILD_CONFIG" | jq -r '.frontend.root // "frontend"')"
+        echo "    - buildCommand: $(echo "$BUILD_CONFIG" | jq -r '.frontend.buildCommand // "npm run build"')"
+        echo "    - nodeVersion: $(echo "$BUILD_CONFIG" | jq -r '.frontend.nodeVersion // "20.x"')"
         echo "  Backend:"
-        echo "    - root: $(echo "$CONFIG" | jq -r '.backend.root')"
-        echo "    - folder: $(echo "$CONFIG" | jq -r '.backend.folder')"
-        echo "    - projectFile: $(echo "$CONFIG" | jq -r '.backend.projectFile')"
+        echo "    - root: $(echo "$BUILD_CONFIG" | jq -r '.backend.root')"
+        echo "    - folder: $(echo "$BUILD_CONFIG" | jq -r '.backend.folder')"
+        echo "    - projectFile: $(echo "$BUILD_CONFIG" | jq -r '.backend.projectFile')"
         echo "  Docker:"
-        echo "    - imageName: $(echo "$CONFIG" | jq -r '.docker.imageName')"
-        echo "    - registryName: $(echo "$CONFIG" | jq -r '.docker.registryName')"
-        echo "    - dockerfile: $(echo "$CONFIG" | jq -r '.docker.dockerfile // "Dockerfile"')"
+        echo "    - imageName: $(echo "$BUILD_CONFIG" | jq -r '.docker.imageName')"
+        echo "    - registryName: $(echo "$BUILD_CONFIG" | jq -r '.docker.registryName')"
+        echo "    - dockerfile: $(echo "$BUILD_CONFIG" | jq -r '.docker.dockerfile // "Dockerfile"')"
         echo "  Versioning:"
-        echo "    - script: $(echo "$CONFIG" | jq -r '.versioning.script')"
-        echo "    - scriptsVersion: $(echo "$CONFIG" | jq -r '.versioning.scriptsVersion // "main"')"
+        echo "    - script: $(echo "$BUILD_CONFIG" | jq -r '.versioning.script')"
+        echo "    - scriptsVersion: $(echo "$BUILD_CONFIG" | jq -r '.versioning.scriptsVersion // "main"')"
         echo "  Terraform:"
-        echo "    - modulePath: $(echo "$CONFIG" | jq -r '.terraform.modulePath')"
-        echo "    - tfvarsFile: $(echo "$CONFIG" | jq -r '.terraform.tfvarsFile')"
+        echo "    - modulePath: $(echo "$BUILD_CONFIG" | jq -r '.terraform.modulePath')"
+        echo "    - tfvarsFile: $(echo "$BUILD_CONFIG" | jq -r '.terraform.tfvarsFile')"
         echo "  GitHub:"
-        echo "    - tagScript: $(echo "$CONFIG" | jq -r '.github.tagScript')"
-        echo "    - tagPrefix: $(echo "$CONFIG" | jq -r '.github.tagPrefix')"
+        echo "    - tagScript: $(echo "$BUILD_CONFIG" | jq -r '.github.tagScript')"
+        echo "    - tagPrefix: $(echo "$BUILD_CONFIG" | jq -r '.github.tagPrefix')"
         
     - name: Check for open PR to main
       id: check-pr
