@@ -15,8 +15,8 @@ on:
         type: string
 
       # Deploy options
-      version:
-        description: "Version to deploy"
+      tag:
+        description: "Tag to deploy"
         required: true
         type: string
 
@@ -48,12 +48,14 @@ on:
 
 jobs:
   deploy-and-tag:
-    name: 'deploy: ${{ inputs.version }}'
+    name: 'deploy: ${{ inputs.tag }}'
     runs-on: ubuntu-latest
     steps:
 
     - name: Checkout code
       uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/checkout@main
+      with:
+        ref: ${{ inputs.tag }}
 
     # Load configuration
     - name: Load configuration
@@ -71,7 +73,7 @@ jobs:
         echo "  Docker inputs:"
         echo "    - image-name: ${{ steps.config.outputs.image-name }}"
         echo "    - registry-name: ${{ steps.config.outputs.registry-name }}"
-        echo "    - version: ${{ inputs.version }}"
+        echo "    - tag: ${{ inputs.tag }}"
         echo "  Tag inputs:"
         echo "    - tag-prefix: ${{ steps.config.outputs.tag-prefix }}"
         echo "    - tag-script: ${{ steps.config.outputs.tag-script }}"
@@ -149,19 +151,10 @@ jobs:
       run: rm -f tfplan
       working-directory: ${{ steps.config.outputs.tf-module-path }}
 
-    - name: Create Git tag
-      if: steps.apply.outputs.apply_status == 'success'
-      env:
-        GITHUB_TOKEN: ${{ secrets.github-token }}
-      run: |
-        VERSION="${{ inputs.version }}"
-        echo "Creating git tag using: ./${{ steps.config.outputs.tag-script }} ${{ inputs.version }} ${{ steps.config.outputs.tag-prefix }} ${{ steps.config.outputs.registry-name }} ${{ steps.config.outputs.image-name }}"
-        ./${{ steps.config.outputs.tag-script }} ${{ inputs.version }} ${{ steps.config.outputs.tag-prefix }} ${{ steps.config.outputs.registry-name }} ${{ steps.config.outputs.image-name }}
-
     - name: Create deployment summary
       if: steps.apply.outputs.apply_status == 'success'
       run: |
-        VERSION="${{ inputs.version }}"
+        TAG="${{ inputs.tag }}"
         echo "## 🚀 App Deployment Completed" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "**Version:** $VERSION" >> $GITHUB_STEP_SUMMARY
@@ -185,6 +178,8 @@ jobs:
 
     - name: Checkout code
       uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/checkout@main
+      with:
+        ref: ${{ inputs.tag }}
 
     # Load configuration
     - name: Load configuration
@@ -220,14 +215,14 @@ jobs:
     - name: Run Trivy vulnerability scanner (SARIF)
       uses: aquasecurity/trivy-action@master
       with:
-        image-ref: '${{ steps.config.outputs.registry-name }}/${{ steps.config.outputs.image-name }}:${{ inputs.version }}'
+        image-ref: '${{ steps.config.outputs.registry-name }}/${{ steps.config.outputs.image-name }}:${{ inputs.tag }}'
         format: 'sarif'
         output: 'trivy-results.sarif'
 
     - name: Run Trivy vulnerability scanner (Table format)
       uses: aquasecurity/trivy-action@master
       with:
-        image-ref: '${{ steps.config.outputs.registry-name }}/${{ steps.config.outputs.image-name }}:${{ inputs.version }}'
+        image-ref: '${{ steps.config.outputs.registry-name }}/${{ steps.config.outputs.image-name }}:${{ inputs.tag }}'
         format: 'table'
         output: 'trivy-results.txt'
 
@@ -242,7 +237,7 @@ jobs:
       uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: trivy-scan-results-${{ inputs.version }}
+        name: trivy-scan-results-${{ inputs.tag }}
         path: |
           trivy-results.sarif
           trivy-results.txt
@@ -252,7 +247,7 @@ jobs:
       run: |
         echo "## 🔍 Security Scan Results" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "**Image Scanned:** \`${{ steps.config.outputs.registry-name }}/${{ steps.config.outputs.image-name }}:${{ inputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "**Image Scanned:** \`${{ steps.config.outputs.registry-name }}/${{ steps.config.outputs.image-name }}:${{ inputs.tag }}\`" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         
         if [ -f trivy-results.txt ]; then

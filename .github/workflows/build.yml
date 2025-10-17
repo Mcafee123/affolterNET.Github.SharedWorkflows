@@ -62,12 +62,10 @@ jobs:
 
       # Skip if PR is running to main
       - name: Check if should skip
-        if: steps.config.outputs.pr-running-to-main == 'true'
         run: |
           echo "⚠️ Skipping build - PR is running to main"
 
       - name: Build Workflow Started
-        if: steps.config.outputs.pr-running-to-main != 'true'
         shell: bash
         run: |
           echo "🚀 Starting Build Workflow"
@@ -98,7 +96,6 @@ jobs:
           echo "    - acr-password: $([ -n '${{ secrets.acr-password }}' ] && echo 'Yes' || echo 'No')"
 
       - name: Get version scripts
-        if: steps.config.outputs.pr-running-to-main != 'true'
         uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/get-scripts@main
         with:
           scripts-version: ${{ steps.config.outputs.scripts-version }}
@@ -106,7 +103,6 @@ jobs:
 
       - name: Version
         id: version
-        if: steps.config.outputs.pr-running-to-main != 'true'
         uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/version@main
         with:
           project_file: ${{ steps.config.outputs.backend-root }}/${{ steps.config.outputs.backend-folder }}/${{ steps.config.outputs.backend-project-file}}
@@ -115,7 +111,7 @@ jobs:
           version-script: ${{ steps.config.outputs.version-script }}
 
       - name: Build Frontend
-        if: ${{ steps.config.outputs.pr-running-to-main != 'true' && steps.config.outputs.build-frontend == 'true' }}
+        if: steps.config.outputs.build-frontend == 'true'
         uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/build-frontend@main
         with:
           frontend-root: ${{ steps.config.outputs.frontend-root }}
@@ -123,7 +119,6 @@ jobs:
           node-version: ${{ steps.config.outputs.node-version }}
 
       - name: Build Backend
-        if: steps.config.outputs.pr-running-to-main != 'true'
         uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/build-backend@main
         with:
           version: ${{ steps.version.outputs.version }}
@@ -138,3 +133,12 @@ jobs:
           scripts-version: ${{ steps.config.outputs.scripts-version }}
           acr-username: ${{ secrets.acr-username }}
           acr-password: ${{ secrets.acr-password }}
+
+      - name: Create Git tag
+        if: inputs.push
+        env:
+          GITHUB_TOKEN: ${{ secrets.github-token }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          echo "Creating git tag using: ./${{ steps.config.outputs.tag-script }} ${{ steps.version.outputs.version }} ${{ steps.config.outputs.tag-prefix }} ${{ steps.config.outputs.registry-name }} ${{ steps.config.outputs.image-name }}"
+          ./${{ steps.config.outputs.tag-script }} ${{ steps.version.outputs.version }} ${{ steps.config.outputs.tag-prefix }} ${{ steps.config.outputs.registry-name }} ${{ steps.config.outputs.image-name }}

@@ -4,6 +4,10 @@ inputs:
     description: 'Fetch depth for git history'
     required: false
     default: 1
+  ref:
+    description: 'Git ref (branch, tag, or commit SHA) to checkout'
+    required: false
+    default: ''
 
 runs:
   using: 'composite'
@@ -22,13 +26,14 @@ runs:
         fi
         echo "All inputs received:"
         echo "  - fetch-depth: ${{ inputs.fetch-depth }}"
+        echo "  - ref: ${{ inputs.ref }}"
 
     - name: Checkout code
       if: steps.check_status.outputs.already_checked_out == 'false'
       uses: actions/checkout@v4
       with:
         fetch-depth: ${{ inputs.fetch-depth }}
-        ref: ${{ github.head_ref || github.ref_name }}
+        ref: ${{ inputs.ref != '' && inputs.ref || (github.head_ref || github.ref_name) }}
         token: ${{ github.token }}
 
     - name: Debug checkout context
