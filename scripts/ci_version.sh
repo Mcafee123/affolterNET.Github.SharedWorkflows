@@ -276,11 +276,12 @@ commit_and_push_changes() {
 main() {
     if [ $# -lt 2 ] || [ $# -gt 3 ]; then
         log "❌ Usage:"
-        log "     $0 read <project_file>"
+        log "     $0 read <project_file> [tfvars_file]"
         log "     $0 update <project_file> [tfvars_file]"
         log ""
         log "   Examples:"
         log "     $0 read backend/affolterNET.FormsG.Api/affolterNET.FormsG.Api.csproj"
+        log "     $0 read backend/affolterNET.FormsG.Api/affolterNET.FormsG.Api.csproj tf/dev/api/terraform.tfvars"
         log "     $0 update backend/affolterNET.FormsG.Api/affolterNET.FormsG.Api.csproj"
         log "     $0 update backend/affolterNET.FormsG.Api/affolterNET.FormsG.Api.csproj tf/dev/api/terraform.tfvars"
         exit 1
@@ -298,8 +299,8 @@ main() {
     fi
     
     # Validate required parameters based on action
-    if [ "$action" = "read" ] && [ $# -ne 2 ]; then
-        log "❌ Read action requires exactly 2 parameters: read <project_file>"
+    if [ "$action" = "read" ] && ([ $# -lt 2 ] || [ $# -gt 3 ]); then
+        log "❌ Read action requires 2-3 parameters: read <project_file> [tfvars_file]"
         exit 1
     fi
     
