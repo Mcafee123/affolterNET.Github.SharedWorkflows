@@ -1,0 +1,33 @@
+name: 'Versioning'
+description: 'Reads or updates versions'
+
+inputs:
+  project_file:
+    description: 'The path to the project file (e.g., .csproj, package.json)'
+    required: true
+  tfvars_file:
+    description: 'The path to the Terraform .tfvars file (if applicable)'
+    required: false
+    default: ''
+  action:
+    description: 'The action to perform (read or update)'
+    required: false
+    default: 'read'
+  version-script:
+    description: 'The script to use for versioning'
+    required: false
+    default: 'scripts/ci_version.sh'
+outputs:
+  version:
+    description: 'The current version of the project'
+
+runs:
+  using: 'composite'
+  steps:
+  - name: Get version from project file
+  id: version
+  shell: bash
+  run: |
+    echo "Updating version in project file..."
+    echo "Running: ./${{ inputs.version-script }} ${{ inputs.action }} ${{ inputs.project_file }} ${{ inputs.tfvars_file }}"
+    ./${{ inputs.version-script }} ${{ inputs.action }} ${{ inputs.project_file }} ${{ inputs.tfvars_file }} >> $GITHUB_OUTPUT

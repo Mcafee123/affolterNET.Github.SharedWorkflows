@@ -105,20 +105,15 @@ jobs:
           scripts-version: ${{ steps.config.outputs.scripts-version }}
           github-token: ${{ github.token }}
 
-      - name: Get version from project file
-        if: steps.config.outputs.pr-running-to-main != 'true'
+      - name: Version
         id: version
-        shell: bash
-        run: |
-          if [ ${{ inputs.update-version }} == true ]; then
-            echo "Updating version in project file..."
-            echo "Running: ./${{ steps.config.outputs.version-script }} update ${{ steps.config.outputs.backend-root }}/${{ steps.config.outputs.backend-folder }}/${{ steps.config.outputs.backend-project-file}} ${{ steps.config.outputs.tf-module-path }}/${{ steps.config.outputs.tfvars-file }}"
-            ./${{ steps.config.outputs.version-script }} update ${{ steps.config.outputs.backend-root }}/${{ steps.config.outputs.backend-folder }}/${{ steps.config.outputs.backend-project-file}} ${{ steps.config.outputs.tf-module-path }}/${{ steps.config.outputs.tfvars-file }} >> $GITHUB_OUTPUT
-          else
-            echo "Reading version from project file..."
-            echo "Running: ./${{ steps.config.outputs.version-script }} read ${{ steps.config.outputs.backend-root }}/${{ steps.config.outputs.backend-folder }}/${{ steps.config.outputs.backend-project-file}}"
-            ./${{ steps.config.outputs.version-script }} read ${{ steps.config.outputs.backend-root }}/${{ steps.config.outputs.backend-folder }}/${{ steps.config.outputs.backend-project-file}} >> $GITHUB_OUTPUT
-          fi
+        if: steps.config.outputs.pr-running-to-main != 'true'
+        uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/version@main
+        with:
+          project_file: ${{ steps.config.outputs.backend-root }}/${{ steps.config.outputs.backend-folder }}/${{ steps.config.outputs.backend-project-file}}
+          tfvars_file: ${{ steps.config.outputs.tf-module-path }}/${{ steps.config.outputs.tfvars-file }}
+          action: ${{ inputs.update-version == true && 'update' || 'read' }}
+          version-script: ${{ steps.config.outputs.version-script }}
 
       - name: Build Frontend
         if: ${{ steps.config.outputs.pr-running-to-main != 'true' && steps.config.outputs.build-frontend == 'true' }}
