@@ -45,7 +45,7 @@ runs:
   steps:
 
   - name: Get version scripts
-    uses: ./actions/get-scripts
+    uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/get-scripts@main
     with:
       scripts-version: ${{ inputs.scripts-version }}
 
