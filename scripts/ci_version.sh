@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Simple CI Version Management Script
-# Reads current version or updates patch version if same as main branch
+# Reads current version or always updates patch version
 # Always syncs tfvars with the current version (whether updated or not)
 # 
 # Usage:
@@ -36,27 +36,6 @@ get_version_from_file() {
         echo "0.1.0"
     else
         echo "$version"
-    fi
-}
-
-# Function to get version from main branch
-get_main_branch_version() {
-    local project_file="$1"
-    
-    # Check if we can access main branch
-    git fetch origin main
-    if ! git show origin/main:"$project_file" >/dev/null 2>&1; then
-        log "⚠️ Cannot access main branch or file doesn't exist on main"
-        echo ""
-        return
-    fi
-
-    local main_version=$(git show origin/main:"$project_file" | grep -o '<Version>[^<]*</Version>' | sed 's/<Version>\(.*\)<\/Version>/\1/')
-
-    if [ -z "$main_version" ]; then
-        echo "0.1.0"
-    else
-        echo "$main_version"
     fi
 }
 
@@ -349,32 +328,16 @@ main() {
         echo "docker_tag=$current_version"
         
     elif [ "$action" = "update" ]; then
-        # Get main branch version
-        local main_version=$(get_main_branch_version "$project_file")
-        if [ -n "$main_version" ]; then
-            log "Main branch version: $main_version"
-        else
-            log "Main branch version: (not accessible)"
-            main_version="$current_version"
-        fi
-        
         # Initialize tracking variables
         local version_changed=false
         local tfvars_changed=false
-        local final_version="$current_version"
         
-        # Determine if patch update is needed
-        if [ "$current_version" = "$main_version" ]; then
-            # Version is same as main, bump patch
-            final_version=$(bump_patch_version "$current_version")
-            log "Version matches main branch, bumping patch: $current_version → $final_version"
-            
-            update_version_in_file "$project_file" "$final_version"
-            version_changed=true
-        else
-            log "Version differs from main branch, no version update needed"
-            log "Current version: $current_version (unchanged)"
-        fi
+        # Always bump patch version
+        local final_version=$(bump_patch_version "$current_version")
+        log "Bumping patch version: $current_version → $final_version"
+        
+        update_version_in_file "$project_file" "$final_version"
+        version_changed=true
         
         # Always update terraform.tfvars with the final version (if tfvars file provided)
         if [ -n "$tfvars_file" ]; then
