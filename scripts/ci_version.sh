@@ -141,11 +141,22 @@ push_with_retry() {
     local attempt=1
     local delay=2
     
+    # Determine the correct branch name to push to
+    # GITHUB_HEAD_REF is only set for pull requests, use GITHUB_REF_NAME for pushes
+    local target_branch="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
+    if [ -z "$target_branch" ]; then
+        # Fallback to current branch if GitHub variables aren't available
+        target_branch=$(git branch --show-current)
+        log "⚠️ GitHub branch variables not available, using current branch: $target_branch"
+    fi
+    
+    log "🎯 Target branch: $target_branch"
+    
     while [ $attempt -le $max_attempts ]; do
         log "📤 Attempt $attempt/$max_attempts: Pushing changes to GitHub..."
         
-        if git push origin HEAD:$GITHUB_HEAD_REF >&2; then
-            log "✅ Changes pushed successfully to $(git branch --show-current)"
+        if git push origin HEAD:"$target_branch" >&2; then
+            log "✅ Changes pushed successfully to $target_branch"
             return 0
         else
             if [ $attempt -lt $max_attempts ]; then
@@ -154,7 +165,7 @@ push_with_retry() {
                 
                 # First, fetch the latest remote state
                 log "🔄 Fetching latest remote changes..."
-                if ! git fetch origin $GITHUB_HEAD_REF >&2; then
+                if ! git fetch origin "$target_branch" >&2; then
                     log "⚠️ Failed to fetch remote changes, retrying push anyway..."
                     delay=$((delay + 1))
                     attempt=$((attempt + 1))
@@ -163,13 +174,13 @@ push_with_retry() {
                 
                 # Check if we're behind the remote
                 local local_commit=$(git rev-parse HEAD)
-                local remote_commit=$(git rev-parse origin/$GITHUB_HEAD_REF 2>/dev/null || echo "")
+                local remote_commit=$(git rev-parse "origin/$target_branch" 2>/dev/null || echo "")
                 
                 if [ "$local_commit" != "$remote_commit" ] && [ -n "$remote_commit" ]; then
                     log "🔄 Local branch diverged from remote, rebasing our changes..."
                     
                     # Rebase our commit on top of the remote
-                    if git rebase origin/$GITHUB_HEAD_REF >&2; then
+                    if git rebase "origin/$target_branch" >&2; then
                         log "✅ Successfully rebased changes on remote commits"
                     else
                         log "❌ Rebase failed - this shouldn't happen with different files"
@@ -178,7 +189,7 @@ push_with_retry() {
                         
                         # As fallback, try a merge instead of rebase
                         log "🔄 Trying merge strategy instead..."
-                        if git merge origin/$GITHUB_HEAD_REF --no-edit >&2; then
+                        if git merge "origin/$target_branch" --no-edit >&2; then
                             log "✅ Successfully merged remote changes"
                         else
                             log "❌ Merge also failed, skipping this retry..."
@@ -314,6 +325,12 @@ main() {
     if [ -n "$tfvars_file" ]; then
         log "🔍 Tfvars file: $tfvars_file"
     fi
+    
+    # Debug: Show GitHub environment variables
+    log "🔍 GitHub environment:"
+    log "   - GITHUB_REF_NAME: ${GITHUB_REF_NAME:-'(not set)'}"
+    log "   - GITHUB_HEAD_REF: ${GITHUB_HEAD_REF:-'(not set)'}"
+    log "   - Current branch: $(git branch --show-current 2>/dev/null || echo '(unknown)')"
     
     log "🔍 Reading version information..."
     
