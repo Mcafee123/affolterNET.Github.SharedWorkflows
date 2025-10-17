@@ -99,12 +99,6 @@ jobs:
           echo "    - acr-username: $([ -n '${{ secrets.acr-username }}' ] && echo 'Yes' || echo 'No')"
           echo "    - acr-password: $([ -n '${{ secrets.acr-password }}' ] && echo 'Yes' || echo 'No')"
 
-      - name: Get version scripts
-        uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/get-scripts@main
-        with:
-          scripts-version: ${{ steps.config.outputs.scripts-version }}
-          github-token: ${{ github.token }}
-
       - name: Version
         id: version
         uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/version@main
@@ -133,8 +127,6 @@ jobs:
           image-name: ${{ steps.config.outputs.image-name }}
           registry-name: ${{ steps.config.outputs.registry-name }}
           push: ${{ inputs.push }}
-          version-script: ${{ steps.config.outputs.version-script }}
-          scripts-version: ${{ steps.config.outputs.scripts-version }}
           acr-username: ${{ secrets.acr-username }}
           acr-password: ${{ secrets.acr-password }}
 

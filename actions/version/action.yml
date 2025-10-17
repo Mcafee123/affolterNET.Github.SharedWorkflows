@@ -17,6 +17,10 @@ inputs:
     description: 'The script to use for versioning'
     required: false
     default: 'scripts/ci_version.sh'
+  scripts-version:
+    description: 'The version of the scripts to use'
+    required: false
+    default: 'main'
 outputs:
   version:
     description: 'The current version of the project'
@@ -34,6 +38,13 @@ outputs:
 runs:
   using: 'composite'
   steps:
+
+  - name: Get version scripts
+    uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/get-scripts@main
+    with:
+      scripts-version: ${{ inputs.scripts-version }}
+      github-token: ${{ github.token }}
+
   - name: Get version from project file
     id: version
     shell: bash

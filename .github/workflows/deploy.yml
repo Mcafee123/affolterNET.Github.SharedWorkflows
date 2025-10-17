@@ -150,8 +150,6 @@ jobs:
         echo "    - tag-script: ${{ steps.config.outputs.tag-script }}"
         echo "  Terraform inputs:"
         echo "    - tf-module-path: ${{ steps.config.outputs.tf-module-path }}"
-        echo "  Versioning inputs:"
-        echo "    - scripts-version: ${{ steps.config.outputs.scripts-version }}"
         echo "  Secrets provided:"
         echo "    - github-token: $([ -n '${{ secrets.github-token }}' ] && echo 'Yes' || echo 'No')"
         echo "    - ssh-private-key: $([ -n '${{ secrets.ssh-private-key }}' ] && echo 'Yes' || echo 'No')"

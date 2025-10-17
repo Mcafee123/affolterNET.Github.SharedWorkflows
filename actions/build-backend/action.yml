@@ -40,18 +40,6 @@ inputs:
     default: 'true'
     type: string
 
-  # Versioning
-  version-script:
-    description: 'Path to version script downloaded from shared repository'
-    required: false
-    default: './scripts/ci_version.sh'
-    type: string
-  scripts-version:
-    description: 'Version/tag of scripts to use from shared repository'
-    required: false
-    default: 'main'
-    type: string
-
   # ACR
   acr-username:
     description: 'Username for Azure Container Registry'
@@ -79,9 +67,6 @@ runs:
       echo "    - registry-name: ${{ inputs.registry-name }}"
       echo "    - dockerfile: ${{ inputs.dockerfile }}"
       echo "    - push: ${{ inputs.push }}"
-      echo "  Versioning inputs:"
-      echo "    - version-script: ${{ inputs.version-script }}"
-      echo "    - scripts-version: ${{ inputs.scripts-version }}"
       echo "  ACR inputs:"
       echo "    - acr-username: $([ -n '${{ inputs.acr-username }}' ] && echo 'Provided' || echo 'Not provided')"
       echo "    - acr-password: $([ -n '${{ inputs.acr-password }}' ] && echo 'Provided' || echo 'Not provided')"
