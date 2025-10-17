@@ -25,9 +25,9 @@ runs:
   using: 'composite'
   steps:
   - name: Get version from project file
-  id: version
-  shell: bash
-  run: |
-    echo "Updating version in project file..."
-    echo "Running: ./${{ inputs.version-script }} ${{ inputs.action }} ${{ inputs.project_file }} ${{ inputs.tfvars_file }}"
-    ./${{ inputs.version-script }} ${{ inputs.action }} ${{ inputs.project_file }} ${{ inputs.tfvars_file }} >> $GITHUB_OUTPUT
+    id: version
+    shell: bash
+    run: |
+      echo "Updating version in project file..."
+      echo "Running: ./${{ inputs.version-script }} ${{ inputs.action }} ${{ inputs.project_file }} ${{ inputs.tfvars_file }}"
+      ./${{ inputs.version-script }} ${{ inputs.action }} ${{ inputs.project_file }} ${{ inputs.tfvars_file }} >> $GITHUB_OUTPUT
