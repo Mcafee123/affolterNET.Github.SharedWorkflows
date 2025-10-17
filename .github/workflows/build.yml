@@ -132,9 +132,12 @@ jobs:
 
       - name: Create Git tag
         if: inputs.push
-        env:
-          GITHUB_TOKEN: ${{ secrets.github-token }}
-        run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          echo "Creating git tag using: ./${{ steps.config.outputs.tag-script }} ${{ steps.version.outputs.version }} ${{ steps.config.outputs.tag-prefix }} ${{ steps.config.outputs.registry-name }} ${{ steps.config.outputs.image-name }}"
-          ./${{ steps.config.outputs.tag-script }} ${{ steps.version.outputs.version }} ${{ steps.config.outputs.tag-prefix }} ${{ steps.config.outputs.registry-name }} ${{ steps.config.outputs.image-name }}
+        uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/git-tag@main
+        with:
+          version: ${{ steps.version.outputs.version }}
+          tag-prefix: ${{ steps.config.outputs.tag-prefix }}
+          registry-name: ${{ steps.config.outputs.registry-name }}
+          image-name: ${{ steps.config.outputs.image-name }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          ci-script: ${{ steps.config.outputs.tag-script }}
+          scripts-version: ${{ steps.config.outputs.scripts-version }}

@@ -1,0 +1,66 @@
+name: Git Tag
+description: 'Creates a Git tag based on the provided version and prefix'
+
+inputs:
+  version:
+    description: 'The version to use for the Git tag'
+    required: true
+  tag-prefix:
+    description: 'The prefix to use for the Git tag'
+    required: false
+    default: ''
+  registry-name:
+    description: 'Azure Container Registry login server (e.g., myregistry.azurecr.io)'
+    required: false
+    default: ''
+  image-name:
+    description: 'Name of the Docker image'
+    required: false
+    default: ''
+  github-token:
+    description: 'GitHub token for authentication'
+    required: true
+  ci-script:
+    description: 'The script to use for creating the tag'
+    required: false
+    default: 'scripts/ci_tag.sh'
+  scripts-version:
+    description: 'Version of the scripts to use'
+    required: false
+    default: 'main'
+
+outputs:
+  tag-created:
+    description: 'Whether the tag was created successfully'
+    value: ${{ steps.create-tag.outputs.tag_created }}
+  tag-name:
+    description: 'Name of the created tag'
+    value: ${{ steps.create-tag.outputs.tag_name }}
+  version:
+    description: 'Version that was tagged'
+    value: ${{ steps.create-tag.outputs.version }}
+
+runs:
+  using: 'composite'
+  steps:
+
+  - name: Get version scripts
+    uses: ./actions/get-scripts
+    with:
+      scripts-version: ${{ inputs.scripts-version }}
+
+  - name: Create Git tag
+    id: create-tag
+    shell: bash
+    env:
+      GITHUB_TOKEN: ${{ inputs.github-token }}
+    run: |
+      VERSION="${{ inputs.version }}"
+      TAG_PREFIX="${{ inputs.tag-prefix }}"
+      REGISTRY_NAME="${{ inputs.registry-name }}"
+      IMAGE_NAME="${{ inputs.image-name }}"
+
+      echo "Creating git tag using: ./${{ inputs.ci-script }} $VERSION $TAG_PREFIX $REGISTRY_NAME $IMAGE_NAME"
+      output=$(./${{ inputs.ci-script }} "$VERSION" "$TAG_PREFIX" "$REGISTRY_NAME" "$IMAGE_NAME")
+      echo "$output"
+      echo "$output" >> $GITHUB_OUTPUT
