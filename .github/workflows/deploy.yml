@@ -20,6 +20,11 @@ on:
         required: false
         type: string
         default: ""
+      tag: 
+        description: "Tag to deploy"
+        required: false
+        type: string
+        default: ""
       run-security-scan:
         description: "Whether to run security scan after deployment"
         required: false
@@ -53,26 +58,26 @@ on:
         required: true
 
 jobs:
-  versioning:
+  prepare:
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.set-version.outputs.version }}
-      tag: ${{ steps.set-version.outputs.tag }}
+      version: ${{ steps.determine.outputs.version }}
+      tag: ${{ steps.determine.outputs.tag }}
     steps:
-    - name: Checkout code
-      if: inputs.version == ''
+    - name: Checkout code (only if needed for version reading)
+      if: inputs.tag == '' && inputs.version == ''
       uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/checkout@main
 
-    # Load configuration (always needed for tag-prefix)
-    - name: Load configuration
+    - name: Load configuration (only if needed)
+      if: inputs.tag == '' && inputs.version == ''
       id: config
       uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/load-config@main
       with:
         build-file: ${{ inputs.build-file }}
         deploy-file: ${{ inputs.deploy-file }}
 
-    - name: Read Version from Action
-      if: inputs.version == ''
+    - name: Read version from action (only if no inputs provided)
+      if: inputs.tag == '' && inputs.version == ''
       id: get-version
       uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/version@main
       with:
@@ -81,51 +86,68 @@ jobs:
         action: read
         version-script: ${{ steps.config.outputs.version-script }}
 
-    - name: Set Final Version and Tag
-      id: set-version
-      run: |
-        if [ -n "${{ inputs.version }}" ]; then
-          echo "Using input version: ${{ inputs.version }}"
-          echo "version=${{ inputs.version }}" >> $GITHUB_OUTPUT
-        else
-          echo "Using version from action: ${{ steps.get-version.outputs.version }}"
-          echo "version=${{ steps.get-version.outputs.version }}" >> $GITHUB_OUTPUT
-        fi
-        
-        # Set tag using the determined version
-        VERSION="${{ inputs.version != '' && inputs.version || steps.get-version.outputs.version }}"
-        TAG="${{ steps.config.outputs.tag-prefix }}-$VERSION"
-        echo "tag=$TAG" >> $GITHUB_OUTPUT
-        echo "Final tag: $TAG"
+    - name: Load configuration for tag prefix (if tag provided)
+      if: inputs.tag != ''
+      id: config-for-tag
+      uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/load-config@main
+      with:
+        build-file: ${{ inputs.build-file }}
+        deploy-file: ${{ inputs.deploy-file }}
 
-    - name: Versioning Workflow Summary
-      shell: bash
+    - name: Determine final version and tag
+      id: determine
       run: |
-        echo "🔢 Versioning Workflow Summary"
-        echo "All inputs received:"
-        echo "  Configuration inputs:"
-        echo "    - build-file: ${{ inputs.build-file }}"
-        echo "    - deploy-file: ${{ inputs.deploy-file }}"
-        echo "  Version inputs:"
-        echo "    - input-version: ${{ inputs.version != '' && inputs.version || '(not provided - reading from action)' }}"
-        echo "    - run-security-scan: ${{ inputs.run-security-scan }}"
-        echo "  Determined values:"
-        echo "    - final-version: ${{ steps.set-version.outputs.version }}"
-        echo "    - final-tag: ${{ steps.set-version.outputs.tag }}"
-        echo "  Configuration outputs:"
-        echo "    - tag-prefix: ${{ steps.config.outputs.tag-prefix }}"
-        echo "    - backend-project: ${{ steps.config.outputs.backend-root }}/${{ steps.config.outputs.backend-folder }}/${{ steps.config.outputs.backend-project-file }}"
-    
-  deploy-and-tag:
-    name: 'deploy: ${{ needs.versioning.outputs.tag }}'
+        if [ -n "${{ inputs.tag }}" ]; then
+          # Tag provided - extract version from it
+          TAG="${{ inputs.tag }}"
+          if [[ "$TAG" == *-* ]]; then
+            VERSION="${TAG##*-}"
+          else
+            VERSION="$TAG"
+          fi
+          echo "Using input tag: $TAG"
+          echo "Extracted version: $VERSION"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+        elif [ -n "${{ inputs.version }}" ]; then
+          # Version provided - need to load config for tag prefix
+          VERSION="${{ inputs.version }}"
+          TAG_PREFIX=$(echo '${{ steps.config-for-tag.outputs.tag-prefix || steps.config.outputs.tag-prefix }}')
+          TAG="$TAG_PREFIX-$VERSION"
+          echo "Using input version: $VERSION"
+          echo "Generated tag: $TAG"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+        else
+          # No inputs - use version from action
+          VERSION="${{ steps.get-version.outputs.version }}"
+          TAG="${{ steps.config.outputs.tag-prefix }}-$VERSION"
+          echo "Using version from action: $VERSION"
+          echo "Generated tag: $TAG"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Summary
+      run: |
+        echo "🔢 Version and Tag Determination Summary"
+        echo "  Inputs:"
+        echo "    - input-tag: ${{ inputs.tag != '' && inputs.tag || '(not provided)' }}"
+        echo "    - input-version: ${{ inputs.version != '' && inputs.version || '(not provided)' }}"
+        echo "  Final results:"
+        echo "    - version: ${{ steps.determine.outputs.version }}"
+        echo "    - tag: ${{ steps.determine.outputs.tag }}"
+  
+  deploy:
+    name: 'deploy: ${{ needs.prepare.outputs.tag }}'
     runs-on: ubuntu-latest
-    needs: versioning
+    needs: prepare
     steps:
 
     - name: Checkout code
       uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/checkout@main
       with:
-        ref: ${{ needs.versioning.outputs.tag }}
+        ref: ${{ needs.prepare.outputs.tag }}
 
     # Load configuration
     - name: Load configuration
@@ -144,8 +166,8 @@ jobs:
         echo "    - image-name: ${{ steps.config.outputs.image-name }}"
         echo "    - registry-name: ${{ steps.config.outputs.registry-name }}"
         echo "  Version inputs:"
-        echo "    - version: ${{ needs.versioning.outputs.version }}"
-        echo "    - tag: ${{ needs.versioning.outputs.tag }}"
+        echo "    - version: ${{ needs.prepare.outputs.version }}"
+        echo "    - tag: ${{ needs.prepare.outputs.tag }}"
         echo "  Tag inputs:"
         echo "    - tag-prefix: ${{ steps.config.outputs.tag-prefix }}"
         echo "    - tag-script: ${{ steps.config.outputs.tag-script }}"
@@ -226,8 +248,8 @@ jobs:
     - name: Create deployment summary
       if: steps.apply.outputs.apply_status == 'success'
       run: |
-        VERSION="${{ needs.versioning.outputs.version }}"
-        TAG="${{ needs.versioning.outputs.tag }}"
+        VERSION="${{ needs.prepare.outputs.version }}"
+        TAG="${{ needs.prepare.outputs.tag }}"
         echo "## 🚀 App Deployment Completed" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "**Version:** $VERSION" >> $GITHUB_STEP_SUMMARY
@@ -245,14 +267,14 @@ jobs:
   security-scan:
     if: ${{ inputs.run-security-scan }}
     runs-on: ubuntu-latest
-    needs: versioning
+    needs: prepare
     
     steps:
 
     - name: Checkout code
       uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/checkout@main
       with:
-        ref: ${{ needs.versioning.outputs.tag }}
+        ref: ${{ needs.prepare.outputs.tag }}
 
     # Load configuration
     - name: Load configuration
@@ -288,14 +310,14 @@ jobs:
     - name: Run Trivy vulnerability scanner (SARIF)
       uses: aquasecurity/trivy-action@master
       with:
-        image-ref: '${{ steps.config.outputs.registry-name }}/${{ steps.config.outputs.image-name }}:${{ needs.versioning.outputs.version }}'
+        image-ref: '${{ steps.config.outputs.registry-name }}/${{ steps.config.outputs.image-name }}:${{ needs.prepare.outputs.version }}'
         format: 'sarif'
         output: 'trivy-results.sarif'
 
     - name: Run Trivy vulnerability scanner (Table format)
       uses: aquasecurity/trivy-action@master
       with:
-        image-ref: '${{ steps.config.outputs.registry-name }}/${{ steps.config.outputs.image-name }}:${{ needs.versioning.outputs.version }}'
+        image-ref: '${{ steps.config.outputs.registry-name }}/${{ steps.config.outputs.image-name }}:${{ needs.prepare.outputs.version }}'
         format: 'table'
         output: 'trivy-results.txt'
 
@@ -310,7 +332,7 @@ jobs:
       uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: trivy-scan-results-${{ needs.versioning.outputs.version }}
+        name: trivy-scan-results-${{ needs.prepare.outputs.version }}
         path: |
           trivy-results.sarif
           trivy-results.txt
@@ -320,7 +342,7 @@ jobs:
       run: |
         echo "## 🔍 Security Scan Results" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "**Image Scanned:** \`${{ steps.config.outputs.registry-name }}/${{ steps.config.outputs.image-name }}:${{ needs.versioning.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "**Image Scanned:** \`${{ steps.config.outputs.registry-name }}/${{ steps.config.outputs.image-name }}:${{ needs.prepare.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         
         if [ -f trivy-results.txt ]; then
