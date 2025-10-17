@@ -20,6 +20,16 @@ inputs:
 outputs:
   version:
     description: 'The current version of the project'
+    value: ${{ steps.version.outputs.version }}
+  version_changed:
+    description: 'Whether the version was changed'
+    value: ${{ steps.version.outputs.version_changed }}
+  old_version:
+    description: 'The previous version before any changes'
+    value: ${{ steps.version.outputs.old_version }}
+  docker_tag:
+    description: 'Docker tag to use (same as version)'
+    value: ${{ steps.version.outputs.docker_tag }}
 
 runs:
   using: 'composite'
