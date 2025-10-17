@@ -15,13 +15,8 @@ on:
         type: string
 
       # Deploy options
-      version: 
-        description: "Version to deploy"
-        required: false
-        type: string
-        default: ""
       tag: 
-        description: "Tag to deploy"
+        description: "Tag to deploy (if not provided, will read version and generate tag)"
         required: false
         type: string
         default: ""
@@ -64,20 +59,20 @@ jobs:
       version: ${{ steps.determine.outputs.version }}
       tag: ${{ steps.determine.outputs.tag }}
     steps:
-    - name: Checkout code (only if needed for version reading)
-      if: inputs.tag == '' && inputs.version == ''
+    - name: Checkout code (only if no tag provided)
+      if: inputs.tag == ''
       uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/checkout@main
 
-    - name: Load configuration (only if needed)
-      if: inputs.tag == '' && inputs.version == ''
+    - name: Load configuration (only if no tag provided)
+      if: inputs.tag == ''
       id: config
       uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/load-config@main
       with:
         build-file: ${{ inputs.build-file }}
         deploy-file: ${{ inputs.deploy-file }}
 
-    - name: Read version from action (only if no inputs provided)
-      if: inputs.tag == '' && inputs.version == ''
+    - name: Read version from action (only if no tag provided)
+      if: inputs.tag == ''
       id: get-version
       uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/version@main
       with:
@@ -85,14 +80,6 @@ jobs:
         tfvars_file: ${{ steps.config.outputs.tf-module-path }}/${{ steps.config.outputs.tfvars-file }}
         action: read
         version-script: ${{ steps.config.outputs.version-script }}
-
-    - name: Load configuration for tag prefix (if tag provided)
-      if: inputs.tag != ''
-      id: config-for-tag
-      uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/load-config@main
-      with:
-        build-file: ${{ inputs.build-file }}
-        deploy-file: ${{ inputs.deploy-file }}
 
     - name: Determine final version and tag
       id: determine
@@ -109,17 +96,8 @@ jobs:
           echo "Extracted version: $VERSION"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "tag=$TAG" >> $GITHUB_OUTPUT
-        elif [ -n "${{ inputs.version }}" ]; then
-          # Version provided - need to load config for tag prefix
-          VERSION="${{ inputs.version }}"
-          TAG_PREFIX=$(echo '${{ steps.config-for-tag.outputs.tag-prefix || steps.config.outputs.tag-prefix }}')
-          TAG="$TAG_PREFIX-$VERSION"
-          echo "Using input version: $VERSION"
-          echo "Generated tag: $TAG"
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "tag=$TAG" >> $GITHUB_OUTPUT
         else
-          # No inputs - use version from action
+          # No tag provided - use version from action and generate tag
           VERSION="${{ steps.get-version.outputs.version }}"
           TAG="${{ steps.config.outputs.tag-prefix }}-$VERSION"
           echo "Using version from action: $VERSION"
@@ -132,8 +110,7 @@ jobs:
       run: |
         echo "🔢 Version and Tag Determination Summary"
         echo "  Inputs:"
-        echo "    - input-tag: ${{ inputs.tag != '' && inputs.tag || '(not provided)' }}"
-        echo "    - input-version: ${{ inputs.version != '' && inputs.version || '(not provided)' }}"
+        echo "    - input-tag: ${{ inputs.tag != '' && inputs.tag || '(not provided - will read from action)' }}"
         echo "  Final results:"
         echo "    - version: ${{ steps.determine.outputs.version }}"
         echo "    - tag: ${{ steps.determine.outputs.tag }}"
