@@ -182,7 +182,6 @@ jobs:
         # Job 4: Security scan (optional but recommended)
   
   security-scan:
-    name: Security Scan
     if: ${{ inputs.run-security-scan }}
     runs-on: ubuntu-latest
     
