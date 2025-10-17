@@ -38,6 +38,9 @@ on:
       version:
         description: 'The version read from or written to the backend project file'
         value: ${{ jobs.build.outputs.version }}
+      tag:
+        description: 'The tag created for the build'
+        value: ${{ jobs.build.outputs.tag }}
 
 jobs:
   build:
@@ -45,6 +48,7 @@ jobs:
     name: 'build: ${{ github.head_ref || github.ref_name }}'
     outputs:
       version: ${{ steps.version.outputs.version }}  # Job captures step output
+      tag: '${{ steps.config.outputs.tag-prefix }}-${{ steps.version.outputs.version }}'
     steps:
 
       - name: Checkout code
