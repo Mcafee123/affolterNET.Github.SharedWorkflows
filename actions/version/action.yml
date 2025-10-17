@@ -40,8 +40,9 @@ runs:
   steps:
 
   - name: Get version scripts
-    uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/get-scripts@main
+    uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/get-script@main
     with:
+      script: ${{ inputs.version-script }}
       scripts-version: ${{ inputs.scripts-version }}
       github-token: ${{ github.token }}
 

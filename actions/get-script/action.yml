@@ -1,0 +1,72 @@
+name: 'Get Version- and Tag-Scripts'
+description: 'Downloads and sets up common build scripts from shared repository'
+inputs:
+  script:
+    description: 'The specific script to download (e.g., ci_version.sh)'
+    required: true 
+  scripts-version:
+    description: 'Version/tag of scripts to use'
+    required: false
+    default: 'main'
+  github-token:
+    description: 'GitHub token for accessing private repositories'
+    required: false
+    default: ${{ github.token }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Get Scripts Action Started
+      shell: bash
+      run: |
+        echo "🚀 Starting Get Scripts Action"
+        echo "All inputs received:"
+        echo "  - scripts-version: ${{ inputs.scripts-version }}"
+        echo "  - github-token: $([ -n '${{ inputs.github-token }}' ] && echo 'Provided' || echo 'Not provided')"
+
+    - name: Download and verify scripts from shared repository
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        REPO_OWNER: McAfee123
+        REPO_NAME: affolterNET.Github.SharedWorkflows
+        SCRIPTS_VERSION: ${{ inputs.scripts-version }}
+        SCRIPT_NAME: ${{ inputs.script }}
+      run: |
+        echo "📥 Downloading script: $SCRIPT_NAME from shared repository..."
+        
+        # Create scripts directory if it doesn't exist
+        mkdir -p scripts
+        
+        # Clean up existing version if it exists
+        if [ -f "$SCRIPT_NAME" ]; then
+          echo "🧹 Removing existing $SCRIPT_NAME..."
+          rm "$SCRIPT_NAME"
+        fi
+        
+        echo "Downloading $SCRIPT_NAME..."
+        curl -H "Authorization: token $GITHUB_TOKEN" \
+             -H "Accept: application/vnd.github.v3.raw" \
+             -L "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/contents/$SCRIPT_NAME?ref=$SCRIPTS_VERSION" \
+             -o "$SCRIPT_NAME"
+        
+        # Make script executable
+        chmod +x "$SCRIPT_NAME"
+        echo "✅ Downloaded and set executable: $SCRIPT_NAME"
+        
+        echo "✅ Script downloaded successfully"
+        
+        # Verify the downloaded script
+        echo "🔍 Verifying downloaded script..."
+        ls -la scripts/
+        
+        # Basic validation
+        script_path="$SCRIPT_NAME"
+        if [ -f "$script_path" ] && [ -x "$script_path" ]; then
+          echo "✅ $script_path - OK (executable)"
+        else
+          echo "❌ $script_path - FAILED (not found or not executable)"
+          exit 1
+        fi
+        
+        echo "✅ Script verified successfully"
