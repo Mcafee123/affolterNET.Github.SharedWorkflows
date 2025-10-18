@@ -78,11 +78,8 @@ update_version_in_file() {
 # Function to commit and push changes
 commit_and_push_changes() {
     local project_file="$1"
-    local tfvars_file="$2"
-    local old_version="$3"
-    local new_version="$4"
-    local version_changed="$5"
-    local tfvars_changed="$6"
+    local old_version="$2"
+    local new_version="$3"
     
     log "📝 Committing changes to Git..."
     
@@ -90,19 +87,9 @@ commit_and_push_changes() {
     git config --local user.email "action@github.com"
     git config --local user.name "GitHub Action (ci_version.sh)"
     
-    # Add the changed files
-    local files_added=()
-    if [ "$version_changed" = "true" ]; then
-        git add "$project_file"
-        files_added+=("$project_file")
-        log "Added project file to git: $project_file"
-    fi
-    
-    if [ "$tfvars_changed" = "true" ] && [ -f "$tfvars_file" ]; then
-        git add "$tfvars_file"
-        files_added+=("$tfvars_file")
-        log "Added tfvars file to git: $tfvars_file"
-    fi
+    # Add the project file
+    git add "$project_file"
+    log "Added project file to git: $project_file"
     
     # Check if there are changes to commit
     if git diff --staged --quiet; then
@@ -110,27 +97,12 @@ commit_and_push_changes() {
         return 0
     fi
     
-    # Create appropriate commit message based on what changed
-    local commit_message
-    if [ "$version_changed" = "true" ] && [ "$tfvars_changed" = "true" ]; then
-        commit_message="chore: bump version from $old_version to $new_version and sync tfvars
-
-- Automated version bump and tfvars sync by ci_version.sh
-- Component: $(basename "$(dirname "$project_file")")
-- Files updated: ${files_added[*]}"
-    elif [ "$version_changed" = "true" ]; then
-        commit_message="chore: bump version from $old_version to $new_version
+    # Create commit message
+    local commit_message="chore: bump version from $old_version to $new_version
 
 - Automated version bump by ci_version.sh
 - Component: $(basename "$(dirname "$project_file")")
-- Files updated: ${files_added[*]}"
-    else
-        commit_message="chore: sync tfvars with version $new_version
-
-- Automated tfvars sync by ci_version.sh
-- Component: $(basename "$(dirname "$project_file")")
-- Files updated: ${files_added[*]}"
-    fi
+- Files updated: $project_file"
     
     if git commit -m "$commit_message" >&2; then
         log "✅ Changes committed successfully"
