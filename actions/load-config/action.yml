@@ -149,7 +149,9 @@ runs:
           fi
         done
         
-        echo "tfvars-files=$(echo "$TFVARS_FILES_ARRAY" | jq -c .)" >> $GITHUB_OUTPUT
+        echo "tfvars-files<<EOF" >> $GITHUB_OUTPUT
+        echo "$TFVARS_FILES_ARRAY" | jq -c . >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
         echo "tfvars-files-count=$FILES_COUNT" >> $GITHUB_OUTPUT
 
         echo "tag-prefix=$(echo "$BUILD_CONFIG" | jq -r '.github.tagPrefix')" >> $GITHUB_OUTPUT

@@ -44,7 +44,7 @@ runs:
       
       # Validate JSON
       if ! echo "$TFVARS_FILES" | jq empty 2>/dev/null; then
-        echo "❌ Invalid JSON received for tfvars-files"
+        echo "❌ Invalid JSON received for tfvars-files: $TFVARS_FILES"
         exit 1
       fi
       
