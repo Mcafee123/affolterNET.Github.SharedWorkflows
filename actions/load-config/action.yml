@@ -54,6 +54,9 @@ outputs:
   tfvars-files-count:
     description: "Number of tfvars files found"
     value: ${{ steps.parse.outputs.tfvars-files-count }}
+  tf-module-path:
+    description: "The path for the current workflow (main for PROD, develop for DEV)"
+    value: ${{ steps.parse.outputs.tf-module-path }}
     
   # Versioning outputs
   scripts-version:
@@ -155,6 +158,9 @@ runs:
         
         echo "tfvars-files=$TFVARS_FILES_LIST" >> $GITHUB_OUTPUT
         echo "tfvars-files-count=$FILES_COUNT" >> $GITHUB_OUTPUT
+        
+        # Set tf-module-path for the current deployment (based on branch)
+        echo "tf-module-path=$(echo "$DEPLOY_CONFIG" | jq -r '.${{ github.head_ref || github.ref_name }}.modulePath')" >> $GITHUB_OUTPUT
 
         echo "tag-prefix=$(echo "$BUILD_CONFIG" | jq -r '.github.tagPrefix')" >> $GITHUB_OUTPUT
         
@@ -179,6 +185,7 @@ runs:
         echo "  Terraform:"
         echo "    - tfvarsFiles: $TFVARS_FILES_LIST"
         echo "    - filesCount: $FILES_COUNT"
+        echo "    - tfModulePath: $(echo "$DEPLOY_CONFIG" | jq -r '.${{ github.head_ref || github.ref_name }}.modulePath')"
         echo "  GitHub:"
         echo "    - tagScript: $(echo "$BUILD_CONFIG" | jq -r '.github.tagScript')"
         echo "    - tagPrefix: $(echo "$BUILD_CONFIG" | jq -r '.github.tagPrefix')"

@@ -89,6 +89,7 @@ jobs:
           echo "  Terraform inputs:"
           echo "    - tfvars-files: ${{ steps.config.outputs.tfvars-files }}"
           echo "    - tfvars-files-count: ${{ steps.config.outputs.tfvars-files-count }}"
+          echo "    - tf-module-path: ${{ steps.config.outputs.tf-module-path }}"
           echo "  Secrets provided:"
           echo "    - acr-username: $([ -n '${{ secrets.acr-username }}' ] && echo 'Yes' || echo 'No')"
           echo "    - acr-password: $([ -n '${{ secrets.acr-password }}' ] && echo 'Yes' || echo 'No')"
