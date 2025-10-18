@@ -29,8 +29,6 @@ on:
     secrets:
 
       # Github
-      github-token:
-        required: true
       ssh-private-key:
         required: true
 
@@ -149,7 +147,6 @@ jobs:
         echo "  Terraform inputs:"
         echo "    - tf-module-path: ${{ steps.config.outputs.tf-module-path }}"
         echo "  Secrets provided:"
-        echo "    - github-token: $([ -n '${{ secrets.github-token }}' ] && echo 'Yes' || echo 'No')"
         echo "    - ssh-private-key: $([ -n '${{ secrets.ssh-private-key }}' ] && echo 'Yes' || echo 'No')"
         echo "    - azure-credentials: $([ -n '${{ secrets.azure-credentials }}' ] && echo 'Yes' || echo 'No')"
         echo "    - arm-client-id: $([ -n '${{ secrets.arm-client-id }}' ] && echo 'Yes' || echo 'No')"
@@ -158,19 +155,6 @@ jobs:
         echo "    - arm-subscription-id: $([ -n '${{ secrets.arm-subscription-id }}' ] && echo 'Yes' || echo 'No')"
         echo "    - acr-username: $([ -n '${{ secrets.acr-username }}' ] && echo 'Yes' || echo 'No')"
         echo "    - acr-password: $([ -n '${{ secrets.acr-password }}' ] && echo 'Yes' || echo 'No')"
-
-
-    - name: Download required scripts
-      uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/get-scripts@main
-      with:
-        scripts: "scripts/ci_tf.sh scripts/ci_utils.sh"
-        scripts-version: ${{ steps.config.outputs.scripts-version }}
-
-    - name: Sync tfvars with deployment version
-      run: |
-        ./scripts/ci_tf.sh sync-tfvars ${{ needs.prepare.outputs.version }} ${{ steps.config.outputs.tf-module-path }}/${{ steps.config.outputs.tfvars-file }}
-      env:
-        GITHUB_TOKEN: ${{ secrets.github-token }}
 
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v2

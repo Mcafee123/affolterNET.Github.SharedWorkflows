@@ -123,6 +123,14 @@ jobs:
           acr-username: ${{ secrets.acr-username }}
           acr-password: ${{ secrets.acr-password }}
 
+      - name: Sync tfvars with deployment version
+        uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/tf-version@main
+        if: ${{ steps.config.outputs.tf-module-path != '' && steps.config.outputs.tfvars-file != '' }}
+        with:
+          version: ${{ steps.version.outputs.version }}
+          tfvars-file: ${{ steps.config.outputs.tf-module-path }}/${{ steps.config.outputs.tfvars-file }}
+          scripts-version: ${{ steps.config.outputs.scripts-version }}
+
       - name: Create Git tag
         if: inputs.push
         uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/git-tag@main
