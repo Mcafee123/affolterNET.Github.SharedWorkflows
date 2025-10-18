@@ -133,18 +133,6 @@ jobs:
         build-file: ${{ inputs.build-file }}
         deploy-file: ${{ inputs.deploy-file }}
 
-    - name: Download required scripts
-      uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/get-scripts@main
-      with:
-        scripts: "scripts/ci_tf.sh scripts/ci_utils.sh"
-        scripts-version: ${{ steps.config.outputs.scripts-version }}
-
-    - name: Sync tfvars with deployment version
-      run: |
-        ./scripts/ci_tf.sh sync-tfvars ${{ needs.prepare.outputs.version }} ${{ steps.config.outputs.tf-module-path }}/${{ steps.config.outputs.tfvars-file }}
-      env:
-        GITHUB_TOKEN: ${{ secrets.github-token }}
-
     - name: Deploy Workflow Started
       shell: bash
       run: |
@@ -170,6 +158,19 @@ jobs:
         echo "    - arm-subscription-id: $([ -n '${{ secrets.arm-subscription-id }}' ] && echo 'Yes' || echo 'No')"
         echo "    - acr-username: $([ -n '${{ secrets.acr-username }}' ] && echo 'Yes' || echo 'No')"
         echo "    - acr-password: $([ -n '${{ secrets.acr-password }}' ] && echo 'Yes' || echo 'No')"
+
+
+    - name: Download required scripts
+      uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/get-scripts@main
+      with:
+        scripts: "scripts/ci_tf.sh scripts/ci_utils.sh"
+        scripts-version: ${{ steps.config.outputs.scripts-version }}
+
+    - name: Sync tfvars with deployment version
+      run: |
+        ./scripts/ci_tf.sh sync-tfvars ${{ needs.prepare.outputs.version }} ${{ steps.config.outputs.tf-module-path }}/${{ steps.config.outputs.tfvars-file }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.github-token }}
 
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v2
