@@ -64,11 +64,6 @@ jobs:
           build-file: ${{ inputs.build-file }}
           deploy-file: ${{ inputs.deploy-file }}
 
-      # Skip if PR is running to main
-      - name: Check if should skip
-        run: |
-          echo "⚠️ Skipping build - PR is running to main"
-
       - name: Build Workflow Started
         shell: bash
         run: |

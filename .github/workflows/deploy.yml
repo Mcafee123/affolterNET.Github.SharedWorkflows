@@ -141,8 +141,6 @@ jobs:
 
     - name: Sync tfvars with deployment version
       run: |
-        chmod +x ./scripts/ci_tf.sh
-        chmod +x ./scripts/ci_utils.sh
         ./scripts/ci_tf.sh sync-tfvars ${{ needs.prepare.outputs.version }} ${{ steps.config.outputs.tf-module-path }}/${{ steps.config.outputs.tfvars-file }}
       env:
         GITHUB_TOKEN: ${{ secrets.github-token }}
