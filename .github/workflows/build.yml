@@ -103,7 +103,6 @@ jobs:
         uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/version@main
         with:
           project_file: ${{ steps.config.outputs.backend-root }}/${{ steps.config.outputs.backend-folder }}/${{ steps.config.outputs.backend-project-file}}
-          tfvars_file: ${{ steps.config.outputs.tf-module-path }}/${{ steps.config.outputs.tfvars-file }}
           action: ${{ inputs.update-version == true && 'update' || 'read' }}
           scripts-version: ${{ steps.config.outputs.scripts-version }}
 

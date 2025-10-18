@@ -5,10 +5,6 @@ inputs:
   project_file:
     description: 'The path to the project file (e.g., .csproj, package.json)'
     required: true
-  tfvars_file:
-    description: 'The path to the Terraform .tfvars file (if applicable)'
-    required: false
-    default: ''
   action:
     description: 'The action to perform (read or update)'
     required: false
@@ -47,5 +43,5 @@ runs:
     shell: bash
     run: |
       echo "Updating version in project file..."
-      echo "Running: ./scripts/ci_version.sh ${{ inputs.action }} ${{ inputs.project_file }} ${{ inputs.tfvars_file }}"
-      ./scripts/ci_version.sh ${{ inputs.action }} ${{ inputs.project_file }} ${{ inputs.tfvars_file }} >> $GITHUB_OUTPUT
+      echo "Running: ./scripts/ci_version.sh ${{ inputs.action }} ${{ inputs.project_file }}"
+      ./scripts/ci_version.sh ${{ inputs.action }} ${{ inputs.project_file }} >> $GITHUB_OUTPUT
