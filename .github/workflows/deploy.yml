@@ -79,7 +79,7 @@ jobs:
         project_file: ${{ steps.config.outputs.backend-root }}/${{ steps.config.outputs.backend-folder }}/${{ steps.config.outputs.backend-project-file}}
         tfvars_file: ${{ steps.config.outputs.tf-module-path }}/${{ steps.config.outputs.tfvars-file }}
         action: read
-        version-script: ${{ steps.config.outputs.version-script }}
+        scripts-version: ${{ steps.config.outputs.scripts-version }}
 
     - name: Determine final version and tag
       id: determine
@@ -105,6 +105,8 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "tag=$TAG" >> $GITHUB_OUTPUT
         fi
+
+    
 
     - name: Summary
       run: |
@@ -134,6 +136,20 @@ jobs:
         build-file: ${{ inputs.build-file }}
         deploy-file: ${{ inputs.deploy-file }}
 
+    - name: Download required scripts
+      uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/get-scripts@main
+      with:
+        scripts: "scripts/ci_tf.sh scripts/ci_utils.sh"
+        scripts-version: ${{ steps.config.outputs.scripts-version }}
+
+    - name: Sync tfvars with deployment version
+      run: |
+        chmod +x ./scripts/ci_tf.sh
+        chmod +x ./scripts/ci_utils.sh
+        ./scripts/ci_tf.sh sync-tfvars ${{ needs.prepare.outputs.version }} ${{ steps.config.outputs.tf-module-path }}/${{ steps.config.outputs.tfvars-file }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.github-token }}
+
     - name: Deploy Workflow Started
       shell: bash
       run: |
@@ -147,7 +163,6 @@ jobs:
         echo "    - tag: ${{ needs.prepare.outputs.tag }}"
         echo "  Tag inputs:"
         echo "    - tag-prefix: ${{ steps.config.outputs.tag-prefix }}"
-        echo "    - tag-script: ${{ steps.config.outputs.tag-script }}"
         echo "  Terraform inputs:"
         echo "    - tf-module-path: ${{ steps.config.outputs.tf-module-path }}"
         echo "  Secrets provided:"

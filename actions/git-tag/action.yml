@@ -20,10 +20,6 @@ inputs:
   github-token:
     description: 'GitHub token for authentication'
     required: true
-  ci-script:
-    description: 'The script to use for creating the tag'
-    required: false
-    default: 'scripts/ci_tag.sh'
   scripts-version:
     description: 'Version of the scripts to use'
     required: false
@@ -45,9 +41,9 @@ runs:
   steps:
 
   - name: Get version scripts
-    uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/get-script@main
+    uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/get-scripts@main
     with:
-      script: ${{ inputs.ci-script }}
+      scripts: "scripts/ci_tag.sh"
       scripts-version: ${{ inputs.scripts-version }}
 
   - name: Create Git tag
@@ -61,7 +57,7 @@ runs:
       REGISTRY_NAME="${{ inputs.registry-name }}"
       IMAGE_NAME="${{ inputs.image-name }}"
 
-      echo "Creating git tag using: ./${{ inputs.ci-script }} $VERSION $TAG_PREFIX $REGISTRY_NAME $IMAGE_NAME"
-      output=$(./${{ inputs.ci-script }} "$VERSION" "$TAG_PREFIX" "$REGISTRY_NAME" "$IMAGE_NAME")
+      echo "Creating git tag using: ./scripts/ci_tag.sh $VERSION $TAG_PREFIX $REGISTRY_NAME $IMAGE_NAME"
+      output=$(./scripts/ci_tag.sh "$VERSION" "$TAG_PREFIX" "$REGISTRY_NAME" "$IMAGE_NAME")
       echo "$output"
       echo "$output" >> $GITHUB_OUTPUT

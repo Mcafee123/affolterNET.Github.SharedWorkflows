@@ -90,7 +90,6 @@ jobs:
           echo "    - push: ${{ inputs.push }}"
           echo "  Versioning inputs:"
           echo "    - update-version: ${{ inputs.update-version }}"
-          echo "    - version-script: ${{ steps.config.outputs.version-script }}"
           echo "    - scripts-version: ${{ steps.config.outputs.scripts-version }}"
           echo "  Terraform inputs:"
           echo "    - tf-module-path: ${{ steps.config.outputs.tf-module-path }}"
@@ -106,7 +105,7 @@ jobs:
           project_file: ${{ steps.config.outputs.backend-root }}/${{ steps.config.outputs.backend-folder }}/${{ steps.config.outputs.backend-project-file}}
           tfvars_file: ${{ steps.config.outputs.tf-module-path }}/${{ steps.config.outputs.tfvars-file }}
           action: ${{ inputs.update-version == true && 'update' || 'read' }}
-          version-script: ${{ steps.config.outputs.version-script }}
+          scripts-version: ${{ steps.config.outputs.scripts-version }}
 
       - name: Build Frontend
         if: steps.config.outputs.build-frontend == 'true'
@@ -139,5 +138,4 @@ jobs:
           registry-name: ${{ steps.config.outputs.registry-name }}
           image-name: ${{ steps.config.outputs.image-name }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          ci-script: ${{ steps.config.outputs.tag-script }}
           scripts-version: ${{ steps.config.outputs.scripts-version }}

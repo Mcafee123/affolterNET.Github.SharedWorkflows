@@ -56,17 +56,11 @@ outputs:
     value: ${{ steps.parse.outputs.tfvars-file }}
     
   # Versioning outputs
-  version-script:
-    description: "Version management script"
-    value: ${{ steps.parse.outputs.version-script }}
   scripts-version:
     description: "Scripts version to use"
     value: ${{ steps.parse.outputs.scripts-version }}
     
   # GitHub outputs
-  tag-script:
-    description: "Git tagging script"
-    value: ${{ steps.parse.outputs.tag-script }}
   tag-prefix:
     description: "Git tag prefix"
     value: ${{ steps.parse.outputs.tag-prefix }}
@@ -136,13 +130,11 @@ runs:
         echo "registry-name=$(echo "$BUILD_CONFIG" | jq -r '.docker.registryName')" >> $GITHUB_OUTPUT
         echo "dockerfile=$(echo "$BUILD_CONFIG" | jq -r '.docker.dockerfile // "Dockerfile"')" >> $GITHUB_OUTPUT
         
-        echo "version-script=$(echo "$BUILD_CONFIG" | jq -r '.versioning.script')" >> $GITHUB_OUTPUT
         echo "scripts-version=$(echo "$BUILD_CONFIG" | jq -r '.versioning.scriptsVersion // "main"')" >> $GITHUB_OUTPUT
 
         echo "tf-module-path=$(echo "$DEPLOY_CONFIG" | jq -r '.${{ github.head_ref || github.ref_name }}.modulePath')" >> $GITHUB_OUTPUT
         echo "tfvars-file=$(echo "$DEPLOY_CONFIG" | jq -r '.${{ github.head_ref || github.ref_name }}.tfvarsFile')" >> $GITHUB_OUTPUT
 
-        echo "tag-script=$(echo "$BUILD_CONFIG" | jq -r '.github.tagScript')" >> $GITHUB_OUTPUT
         echo "tag-prefix=$(echo "$BUILD_CONFIG" | jq -r '.github.tagPrefix')" >> $GITHUB_OUTPUT
         
         # Debug: Show all extracted values
