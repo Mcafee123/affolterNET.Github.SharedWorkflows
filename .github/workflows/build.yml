@@ -35,6 +35,8 @@ on:
         required: false
 
     outputs:
+
+      # Core build outputs
       version:
         description: 'The version read from or written to the backend project file'
         value: ${{ jobs.build.outputs.version }}
@@ -42,13 +44,102 @@ on:
         description: 'The tag created for the build'
         value: ${{ jobs.build.outputs.tag }}
 
+      # Frontend outputs
+      build-frontend:
+        description: 'Whether to build the frontend'
+        value: ${{ jobs.build.outputs.build-frontend }}
+      frontend-root:
+        description: 'Frontend root directory'
+        value: ${{ jobs.build.outputs.frontend-root }}
+      frontend-build-command:
+        description: 'Frontend build command'
+        value: ${{ jobs.build.outputs.frontend-build-command }}
+      node-version:
+        description: 'Node.js version'
+        value: ${{ jobs.build.outputs.node-version }}
+        
+      # Backend outputs
+      backend-root:
+        description: 'Backend root directory'
+        value: ${{ jobs.build.outputs.backend-root }}
+      backend-folder:
+        description: 'Backend project folder'
+        value: ${{ jobs.build.outputs.backend-folder }}
+      backend-project-file:
+        description: 'Backend project file'
+        value: ${{ jobs.build.outputs.backend-project-file }}
+        
+      # Docker outputs
+      image-name:
+        description: 'The Docker image name from configuration'
+        value: ${{ jobs.build.outputs.image-name }}
+      registry-name:
+        description: 'The container registry name from configuration'
+        value: ${{ jobs.build.outputs.registry-name }}
+      dockerfile:
+        description: 'Dockerfile path'
+        value: ${{ jobs.build.outputs.dockerfile }}
+        
+      # Terraform outputs
+      tfvars-files:
+        description: 'Space-separated list of full paths to all tfvars files'
+        value: ${{ jobs.build.outputs.tfvars-files }}
+      tfvars-files-count:
+        description: 'Number of tfvars files found'
+        value: ${{ jobs.build.outputs.tfvars-files-count }}
+      tf-module-path:
+        description: 'The path for the current workflow (main for PROD, develop for DEV)'
+        value: ${{ jobs.build.outputs.tf-module-path }}
+        
+      # Versioning outputs
+      scripts-version:
+        description: 'Scripts version to use'
+        value: ${{ jobs.build.outputs.scripts-version }}
+        
+      # GitHub outputs
+      tag-prefix:
+        description: 'The tag prefix from configuration'
+        value: ${{ jobs.build.outputs.tag-prefix }}
+      pr-running-to-main:
+        description: 'Whether there is an open PR to main'
+        value: ${{ jobs.build.outputs.pr-running-to-main }}
+
 jobs:
   build:
     runs-on: ubuntu-latest
     name: 'build: ${{ github.head_ref || github.ref_name }}'
     outputs:
-      version: ${{ steps.version.outputs.version }}  # Job captures step output
+      # Core build outputs
+      version: ${{ steps.version.outputs.version }}
       tag: '${{ steps.config.outputs.tag-prefix }}-${{ steps.version.outputs.version }}'
+
+      # Frontend outputs
+      build-frontend: ${{ steps.config.outputs.build-frontend }}
+      frontend-root: ${{ steps.config.outputs.frontend-root }}
+      frontend-build-command: ${{ steps.config.outputs.frontend-build-command }}
+      node-version: ${{ steps.config.outputs.node-version }}
+      
+      # Backend outputs
+      backend-root: ${{ steps.config.outputs.backend-root }}
+      backend-folder: ${{ steps.config.outputs.backend-folder }}
+      backend-project-file: ${{ steps.config.outputs.backend-project-file }}
+      
+      # Docker outputs
+      image-name: ${{ steps.config.outputs.image-name }}
+      registry-name: ${{ steps.config.outputs.registry-name }}
+      dockerfile: ${{ steps.config.outputs.dockerfile }}
+      
+      # Terraform outputs
+      tfvars-files: ${{ steps.config.outputs.tfvars-files }}
+      tfvars-files-count: ${{ steps.config.outputs.tfvars-files-count }}
+      tf-module-path: ${{ steps.config.outputs.tf-module-path }}
+      
+      # Versioning outputs
+      scripts-version: ${{ steps.config.outputs.scripts-version }}
+      
+      # GitHub outputs
+      tag-prefix: ${{ steps.config.outputs.tag-prefix }}
+      pr-running-to-main: ${{ steps.config.outputs.pr-running-to-main }}
     steps:
 
       - name: Checkout code
@@ -132,13 +223,27 @@ jobs:
           tfvars-files: ${{ steps.config.outputs.tfvars-files }}
           scripts-version: ${{ steps.config.outputs.scripts-version }}
 
-      - name: Create Git tag
-        if: inputs.push
-        uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/git-tag@main
-        with:
-          version: ${{ steps.version.outputs.version }}
-          tag-prefix: ${{ steps.config.outputs.tag-prefix }}
-          registry-name: ${{ steps.config.outputs.registry-name }}
-          image-name: ${{ steps.config.outputs.image-name }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          scripts-version: ${{ steps.config.outputs.scripts-version }}
+      - name: Display Final Job Outputs
+        shell: bash
+        run: |
+          echo "🎯 Final Job Outputs:"
+          echo "  Core Outputs:"
+          echo "    - version: ${{ steps.version.outputs.version }}"
+          echo "    - tag: ${{ steps.config.outputs.tag-prefix }}-${{ steps.version.outputs.version }}"
+          echo "    - tag-prefix: ${{ steps.config.outputs.tag-prefix }}"
+          echo "    - registry-name: ${{ steps.config.outputs.registry-name }}"
+          echo "    - image-name: ${{ steps.config.outputs.image-name }}"
+          echo "  All Available Outputs:"
+          echo "    - build-frontend: ${{ steps.config.outputs.build-frontend }}"
+          echo "    - frontend-root: ${{ steps.config.outputs.frontend-root }}"
+          echo "    - frontend-build-command: ${{ steps.config.outputs.frontend-build-command }}"
+          echo "    - node-version: ${{ steps.config.outputs.node-version }}"
+          echo "    - backend-root: ${{ steps.config.outputs.backend-root }}"
+          echo "    - backend-folder: ${{ steps.config.outputs.backend-folder }}"
+          echo "    - backend-project-file: ${{ steps.config.outputs.backend-project-file }}"
+          echo "    - dockerfile: ${{ steps.config.outputs.dockerfile }}"
+          echo "    - tfvars-files: ${{ steps.config.outputs.tfvars-files }}"
+          echo "    - tfvars-files-count: ${{ steps.config.outputs.tfvars-files-count }}"
+          echo "    - tf-module-path: ${{ steps.config.outputs.tf-module-path }}"
+          echo "    - scripts-version: ${{ steps.config.outputs.scripts-version }}"
+          echo "    - pr-running-to-main: ${{ steps.config.outputs.pr-running-to-main }}"
