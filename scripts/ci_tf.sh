@@ -51,10 +51,11 @@ update_tfvars_version() {
     grep "image_name" "$tfvars_file" || log "No image_name found in tfvars file"
 }
 
-# Function to commit and push changes
+# Function to commit and push changes (supports single or multiple files)
 commit_and_push_changes() {
-    local tfvars_file="$1"
-    local version="$2"
+    local version="$1"
+    shift
+    local tfvars_files=("$@")
     
     log "📝 Committing tfvars changes to Git..."
     
@@ -62,9 +63,17 @@ commit_and_push_changes() {
     git config --local user.email "action@github.com"
     git config --local user.name "GitHub Action (ci_tf.sh)"
     
-    # Add the tfvars file
-    git add "$tfvars_file"
-    log "Added tfvars file to git: $tfvars_file"
+    # Add all tfvars files
+    local files_to_commit=""
+    for tfvars_file in "${tfvars_files[@]}"; do
+        git add "$tfvars_file"
+        log "Added tfvars file to git: $tfvars_file"
+        if [ -z "$files_to_commit" ]; then
+            files_to_commit="$tfvars_file"
+        else
+            files_to_commit="$files_to_commit $tfvars_file"
+        fi
+    done
     
     # Check if there are changes to commit
     if git diff --staged --quiet; then
@@ -76,7 +85,7 @@ commit_and_push_changes() {
     local commit_message="chore: update tfvars with deployment version $version
 
 - Automated tfvars update by ci_tf.sh for deployment
-- Files updated: $tfvars_file"
+- Files updated: $files_to_commit"
     
     if git commit -m "$commit_message" >&2; then
         log "✅ Changes committed successfully"
@@ -94,28 +103,110 @@ commit_and_push_changes() {
     fi
 }
 
+
+
+# Function to sync multiple tfvars files
+sync_multiple_tfvars() {
+    local version="$1"
+    shift
+    local tfvars_files=("$@")
+    
+    log "🔍 Action: sync-multiple-tfvars"
+    log "🔍 Version: $version"
+    log "🔍 Tfvars files: ${tfvars_files[*]}"
+    
+    # Debug: Show GitHub environment variables
+    log "🔍 GitHub environment:"
+    log "   - GITHUB_REF_NAME: ${GITHUB_REF_NAME:-'(not set)'}"
+    log "   - GITHUB_HEAD_REF: ${GITHUB_HEAD_REF:-'(not set)'}"
+    log "   - Current branch: $(git branch --show-current 2>/dev/null || echo '(unknown)')"
+    
+    log "🔍 Syncing multiple tfvars with deployment version: $version"
+    
+    local updated_files=()
+    local files_changed=false
+    
+    # Update all files first
+    for tfvars_file in "${tfvars_files[@]}"; do
+        log ""
+        log "📄 Processing: $tfvars_file"
+        
+        # Check if tfvars already has the correct version
+        if [ -f "$tfvars_file" ] && grep -q ":$version\"" "$tfvars_file"; then
+            log "✅ Tfvars already has correct version: $version"
+        else
+            if update_tfvars_version "$tfvars_file" "$version"; then
+                log "✅ Tfvars updated successfully: $tfvars_file"
+                updated_files+=("$tfvars_file")
+                files_changed=true
+            else
+                log "❌ Failed to update tfvars file: $tfvars_file"
+            fi
+        fi
+    done
+    
+    # Commit and push all changes if any were made
+    if [ "$files_changed" = true ]; then
+        if commit_and_push_changes "$version" "${updated_files[@]}"; then
+            log "📋 Multiple tfvars synced with version: $version (committed and pushed)"
+            
+            # Output for GitHub Actions
+            echo "version=$version"
+            echo "tfvars_changed=true"
+            echo "files_updated=${#updated_files[@]}"
+            echo "updated_files=${updated_files[*]}"
+        else
+            log "❌ Changes made but failed to push to GitHub - failing build"
+            exit 1
+        fi
+    else
+        log "ℹ️ No files needed updating"
+        
+        # Output for GitHub Actions
+        echo "version=$version"
+        echo "tfvars_changed=false"
+        echo "files_updated=0"
+        echo "updated_files="
+    fi
+}
+
 # Main script
 main() {
-    if [ $# -ne 3 ]; then
+    if [ $# -lt 3 ]; then
         log "❌ Usage:"
         log "     $0 sync-tfvars <version> <tfvars_file>"
+        log "     $0 sync-multiple-tfvars <version> <tfvars_file1> <tfvars_file2> ..."
         log ""
         log "   Examples:"
         log "     $0 sync-tfvars 1.2.3 tf/dev/api/terraform.tfvars"
+        log "     $0 sync-multiple-tfvars 1.2.3 tf/dev/api/terraform.tfvars tf/prod/api/terraform.tfvars"
         exit 1
     fi
-    
+
     local action="$1"
     local version="$2"
-    local tfvars_file="$3"
+    shift 2
+    local tfvars_files=("$@")
     
     # Validate action
-    if [ "$action" != "sync-tfvars" ]; then
+    if [ "$action" != "sync-tfvars" ] && [ "$action" != "sync-multiple-tfvars" ]; then
         log "❌ Invalid action: $action"
-        log "   Valid actions: sync-tfvars"
+        log "   Valid actions: sync-tfvars, sync-multiple-tfvars"
         exit 1
     fi
     
+    # Handle multiple tfvars files
+    if [ "$action" = "sync-multiple-tfvars" ]; then
+        sync_multiple_tfvars "$version" "${tfvars_files[@]}"
+        return
+    fi
+    
+    # Handle single file (original behavior - maintain backward compatibility)
+    if [ ${#tfvars_files[@]} -ne 1 ]; then
+        log "❌ sync-tfvars requires exactly one tfvars file"
+        exit 1
+    fi
+    local tfvars_file="${tfvars_files[0]}"
     log "🔍 Action: $action"
     log "🔍 Version: $version"
     log "🔍 Tfvars file: $tfvars_file"
@@ -141,7 +232,7 @@ main() {
             log "✅ Tfvars updated successfully to version: $version"
             
             # Commit and push changes
-            if commit_and_push_changes "$tfvars_file" "$version"; then
+            if commit_and_push_changes "$version" "$tfvars_file"; then
                 log "📋 Tfvars synced with version: $version (committed and pushed)"
                 
                 # Output for GitHub Actions - only on successful push

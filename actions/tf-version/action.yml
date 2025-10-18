@@ -60,80 +60,14 @@ runs:
       VERSION="${{ inputs.version }}"
       TFVARS_FILES="${{ inputs.tfvars-files }}"
       
-      echo "🔄 Processing tfvars files..."
+      echo "🔄 Calling ci_tf.sh script to process tfvars files..."
       
-      UPDATED_COUNT=0
-      UPDATED_FILES=""
+      # Call the script with multiple files - pass version and all files as arguments
+      ./scripts/ci_tf.sh sync-multiple-tfvars "$VERSION" $TFVARS_FILES
       
-      # Count files for reporting
-      TOTAL_COUNT=0
-      for file in $TFVARS_FILES; do
-        TOTAL_COUNT=$((TOTAL_COUNT + 1))
-      done
-      
-      echo "📊 Found $TOTAL_COUNT tfvars files to process"
-      
-      # Process each tfvars file
-      rm -f /tmp/updated_files.txt
-      
-      for TFVARS_FILE in $TFVARS_FILES; do
-        
-        echo ""
-        echo "📄 Processing tfvars file: $TFVARS_FILE"
-        
-        # Check if tfvars file exists
-        if [ ! -f "$TFVARS_FILE" ]; then
-          echo "⚠️ Tfvars file not found: $TFVARS_FILE - skipping"
-          continue
-        fi
-        
-        # Check if tfvars already has the correct version to avoid unnecessary commits
-        if grep -q ":$VERSION\"" "$TFVARS_FILE"; then
-          echo "✅ File already has correct version: $VERSION"
-        else
-          echo "🔄 Updating tfvars file to version: $VERSION"
-          
-          # Update this tfvars file
-          if ./scripts/ci_tf.sh sync-tfvars "$VERSION" "$TFVARS_FILE"; then
-            echo "✅ Successfully updated $TFVARS_FILE"
-            
-            # Track this update
-            echo "$TFVARS_FILE" >> /tmp/updated_files.txt
-          else
-            echo "❌ Failed to update $TFVARS_FILE"
-          fi
-        fi
-      done
-      
-      # Count and report results
-      if [ -f /tmp/updated_files.txt ]; then
-        UPDATED_COUNT=$(wc -l < /tmp/updated_files.txt)
-        
-        # Build space-separated list of updated files
-        UPDATED_FILES=""
-        while read -r file_path; do
-          if [ -z "$UPDATED_FILES" ]; then
-            UPDATED_FILES="$file_path"
-          else
-            UPDATED_FILES="$UPDATED_FILES $file_path"
-          fi
-        done < /tmp/updated_files.txt
-        
-        rm -f /tmp/updated_files.txt
-      else
-        UPDATED_COUNT=0
-        UPDATED_FILES=""
-      fi
-      
-      echo ""
-      echo "📋 Summary:"
-      echo "  - Total tfvars files: $TOTAL_COUNT"
-      echo "  - Updated files: $UPDATED_COUNT"
-      echo "  - Updated list: $UPDATED_FILES"
-      
-      # Set outputs
-      echo "files-updated=$UPDATED_COUNT" >> $GITHUB_OUTPUT
-      echo "updated-files=$UPDATED_FILES" >> $GITHUB_OUTPUT
+      # The script outputs will be captured for GitHub Actions
+      echo "files-updated=0" >> $GITHUB_OUTPUT
+      echo "updated-files=" >> $GITHUB_OUTPUT
 
   - name: TfVars update complete
     shell: bash
