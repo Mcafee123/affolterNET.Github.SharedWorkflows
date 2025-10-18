@@ -6,7 +6,7 @@ inputs:
     description: 'The version to sync to'
     required: true
   tfvars-files:
-    description: 'JSON array of full paths to tfvars files to update'
+    description: 'Space-separated list of full paths to tfvars files to update'
     required: true
   scripts-version:
     description: 'The version of the scripts to use'
@@ -18,7 +18,7 @@ outputs:
     description: 'Number of tfvars files that were updated'
     value: ${{ steps.update.outputs.files-updated }}
   updated-files:
-    description: 'JSON array of file paths that were actually updated'
+    description: 'Space-separated list of file paths that were actually updated'
     value: ${{ steps.update.outputs.updated-files }}
 
 runs:
@@ -37,20 +37,15 @@ runs:
       # Validate inputs
       TFVARS_FILES="${{ inputs.tfvars-files }}"
       
-      if [ -z "$TFVARS_FILES" ] || [ "$TFVARS_FILES" == "[]" ] || [ "$TFVARS_FILES" == "null" ]; then
+      if [ -z "$TFVARS_FILES" ]; then
         echo "❌ Error: 'tfvars-files' must be provided and cannot be empty"
         exit 1
       fi
       
-      # Validate JSON
-      if ! echo "$TFVARS_FILES" | jq empty 2>/dev/null; then
-        echo "❌ Invalid JSON received for tfvars-files: $TFVARS_FILES"
-        exit 1
-      fi
-      
-      echo "✅ Valid JSON received for tfvars-files"
-      echo "� Files to process:"
-      echo "$TFVARS_FILES" | jq -r '.[] | "  - \(.)"'
+      echo "🔍 Files to process:"
+      for file in $TFVARS_FILES; do
+        echo "  - $file"
+      done
 
   - name: Download required scripts
     uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/get-scripts@main
@@ -63,22 +58,25 @@ runs:
     shell: bash
     run: |
       VERSION="${{ inputs.version }}"
-      TFVARS_FILES='${{ inputs.tfvars-files }}'
+      TFVARS_FILES="${{ inputs.tfvars-files }}"
       
       echo "🔄 Processing tfvars files..."
       
       UPDATED_COUNT=0
-      UPDATED_FILES="[]"
-      TOTAL_COUNT=$(echo "$TFVARS_FILES" | jq length)
+      UPDATED_FILES=""
+      
+      # Count files for reporting
+      TOTAL_COUNT=0
+      for file in $TFVARS_FILES; do
+        TOTAL_COUNT=$((TOTAL_COUNT + 1))
+      done
       
       echo "📊 Found $TOTAL_COUNT tfvars files to process"
       
       # Process each tfvars file
       rm -f /tmp/updated_files.txt
       
-      # Get array length for iteration
-      for i in $(seq 0 $((TOTAL_COUNT - 1))); do
-        TFVARS_FILE=$(echo "$TFVARS_FILES" | jq -r ".[$i]")
+      for TFVARS_FILE in $TFVARS_FILES; do
         
         echo ""
         echo "📄 Processing tfvars file: $TFVARS_FILE"
@@ -111,27 +109,31 @@ runs:
       if [ -f /tmp/updated_files.txt ]; then
         UPDATED_COUNT=$(wc -l < /tmp/updated_files.txt)
         
-        # Build JSON array of updated files
-        UPDATED_FILES="[]"
+        # Build space-separated list of updated files
+        UPDATED_FILES=""
         while read -r file_path; do
-          UPDATED_FILES=$(echo "$UPDATED_FILES" | jq ". += [\"$file_path\"]")
+          if [ -z "$UPDATED_FILES" ]; then
+            UPDATED_FILES="$file_path"
+          else
+            UPDATED_FILES="$UPDATED_FILES $file_path"
+          fi
         done < /tmp/updated_files.txt
         
         rm -f /tmp/updated_files.txt
       else
         UPDATED_COUNT=0
-        UPDATED_FILES="[]"
+        UPDATED_FILES=""
       fi
       
       echo ""
       echo "📋 Summary:"
       echo "  - Total tfvars files: $TOTAL_COUNT"
       echo "  - Updated files: $UPDATED_COUNT"
-      echo "  - Updated list: $(echo "$UPDATED_FILES" | jq -c .)"
+      echo "  - Updated list: $UPDATED_FILES"
       
       # Set outputs
       echo "files-updated=$UPDATED_COUNT" >> $GITHUB_OUTPUT
-      echo "updated-files=$(echo "$UPDATED_FILES" | jq -c .)" >> $GITHUB_OUTPUT
+      echo "updated-files=$UPDATED_FILES" >> $GITHUB_OUTPUT
 
   - name: TfVars update complete
     shell: bash

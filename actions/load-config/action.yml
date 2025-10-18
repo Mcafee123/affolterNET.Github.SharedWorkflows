@@ -49,7 +49,7 @@ outputs:
     
   # Terraform outputs
   tfvars-files:
-    description: "JSON array of full paths to all tfvars files"
+    description: "Space-separated list of full paths to all tfvars files"
     value: ${{ steps.parse.outputs.tfvars-files }}
   tfvars-files-count:
     description: "Number of tfvars files found"
@@ -132,9 +132,9 @@ runs:
         
         echo "scripts-version=$(echo "$BUILD_CONFIG" | jq -r '.versioning.scriptsVersion // "main"')" >> $GITHUB_OUTPUT
 
-        # Extract all environments and build JSON array of tfvars file paths
+        # Extract all environments and build space-separated list of tfvars file paths
         ENVIRONMENTS=$(echo "$DEPLOY_CONFIG" | jq -r 'keys[]')
-        TFVARS_FILES_ARRAY="[]"
+        TFVARS_FILES_LIST=""
         FILES_COUNT=0
         
         for env in $ENVIRONMENTS; do
@@ -144,14 +144,16 @@ runs:
           # Only include environments that have both modulePath and tfvarsFile
           if [ "$MODULE_PATH" != "null" ] && [ "$TFVARS_FILE" != "null" ]; then
             FULL_PATH="$MODULE_PATH/$TFVARS_FILE"
-            TFVARS_FILES_ARRAY=$(echo "$TFVARS_FILES_ARRAY" | jq ". += [\"$FULL_PATH\"]")
+            if [ $FILES_COUNT -eq 0 ]; then
+              TFVARS_FILES_LIST="$FULL_PATH"
+            else
+              TFVARS_FILES_LIST="$TFVARS_FILES_LIST $FULL_PATH"
+            fi
             FILES_COUNT=$((FILES_COUNT + 1))
           fi
         done
         
-        echo "tfvars-files<<EOF" >> $GITHUB_OUTPUT
-        echo "$TFVARS_FILES_ARRAY" | jq -c . >> $GITHUB_OUTPUT
-        echo "EOF" >> $GITHUB_OUTPUT
+        echo "tfvars-files=$TFVARS_FILES_LIST" >> $GITHUB_OUTPUT
         echo "tfvars-files-count=$FILES_COUNT" >> $GITHUB_OUTPUT
 
         echo "tag-prefix=$(echo "$BUILD_CONFIG" | jq -r '.github.tagPrefix')" >> $GITHUB_OUTPUT
@@ -175,7 +177,7 @@ runs:
         echo "    - script: $(echo "$BUILD_CONFIG" | jq -r '.versioning.script')"
         echo "    - scriptsVersion: $(echo "$BUILD_CONFIG" | jq -r '.versioning.scriptsVersion // "main"')"
         echo "  Terraform:"
-        echo "    - tfvarsFiles: $(echo "$TFVARS_FILES_ARRAY" | jq -c .)"
+        echo "    - tfvarsFiles: $TFVARS_FILES_LIST"
         echo "    - filesCount: $FILES_COUNT"
         echo "  GitHub:"
         echo "    - tagScript: $(echo "$BUILD_CONFIG" | jq -r '.github.tagScript')"
