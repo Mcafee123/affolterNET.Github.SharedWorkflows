@@ -24,5 +24,6 @@ runs:
       scripts-version: ${{ inputs.scripts-version }}
 
   - name: Sync tfvars with deployment version
+    shell: bash
     run: |
       ./scripts/ci_tf.sh sync-tfvars ${{ inputs.version }} ${{ inputs.tfvars-file }}
