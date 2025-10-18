@@ -41,7 +41,7 @@ sync_with_remote() {
         log "ℹ️ Remote commit: $remote_commit"
         
         # Fast-forward to the latest remote commit
-        if git merge --ff-only "origin/$target_branch"; then
+        if git merge --ff-only "origin/$target_branch" >&2; then
             log "✅ Successfully fast-forwarded to latest remote commit"
         else
             log "⚠️ Cannot fast-forward, there might be divergent changes"
