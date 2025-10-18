@@ -40,6 +40,9 @@ runs:
   using: 'composite'
   steps:
 
+  - name: Checkout code
+    uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/checkout@main
+    
   - name: Get version scripts
     uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/get-scripts@main
     with:
