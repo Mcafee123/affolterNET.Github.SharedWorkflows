@@ -12,6 +12,48 @@ log() {
     echo "[$(date '+%H:%M:%S')] $1" >&2
 }
 
+# Function to sync with remote before tagging
+sync_with_remote() {
+    # Determine the correct branch name
+    local target_branch="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
+    if [ -z "$target_branch" ]; then
+        target_branch=$(git branch --show-current)
+        log "⚠️ GitHub branch variables not available, using current branch: $target_branch"
+    fi
+    
+    log "🔄 Syncing with remote branch: $target_branch"
+    
+    # Fetch latest changes from remote
+    if git fetch origin "$target_branch"; then
+        log "✅ Fetched latest changes from origin/$target_branch"
+    else
+        log "⚠️ Failed to fetch from origin/$target_branch, continuing with current state"
+        return 0
+    fi
+    
+    # Check if we're behind the remote
+    local local_commit=$(git rev-parse HEAD)
+    local remote_commit=$(git rev-parse "origin/$target_branch" 2>/dev/null || echo "")
+    
+    if [ "$local_commit" != "$remote_commit" ] && [ -n "$remote_commit" ]; then
+        log "🔄 Local branch is behind remote, updating to latest commit..."
+        log "ℹ️ Local commit: $local_commit"
+        log "ℹ️ Remote commit: $remote_commit"
+        
+        # Fast-forward to the latest remote commit
+        if git merge --ff-only "origin/$target_branch"; then
+            log "✅ Successfully fast-forwarded to latest remote commit"
+        else
+            log "⚠️ Cannot fast-forward, there might be divergent changes"
+            log "ℹ️ Continuing with current commit to avoid conflicts"
+            # Continue with current commit rather than failing
+        fi
+    else
+        log "ℹ️ Local branch is up to date with remote"
+    fi
+}
+
+
 # Function to push tag with retry mechanism
 push_tag_with_retry() {
     local tag_name="$1"
@@ -70,6 +112,9 @@ create_tag() {
     git config --local user.email "action@github.com"
     git config --local user.name "GitHub Action"
     
+    # Sync with remote to ensure we're tagging the latest commit
+    sync_with_remote
+
     # Create release message
     local release_message="Release $tag_name
 
