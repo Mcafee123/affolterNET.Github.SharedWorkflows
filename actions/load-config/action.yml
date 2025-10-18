@@ -48,12 +48,12 @@ outputs:
     value: ${{ steps.parse.outputs.dockerfile }}
     
   # Terraform outputs
-  tf-module-path:
-    description: "Terraform module path"
-    value: ${{ steps.parse.outputs.tf-module-path }}
-  tfvars-file:
-    description: "Terraform variables file"
-    value: ${{ steps.parse.outputs.tfvars-file }}
+  tfvars-files:
+    description: "JSON array of full paths to all tfvars files"
+    value: ${{ steps.parse.outputs.tfvars-files }}
+  tfvars-files-count:
+    description: "Number of tfvars files found"
+    value: ${{ steps.parse.outputs.tfvars-files-count }}
     
   # Versioning outputs
   scripts-version:
@@ -132,8 +132,25 @@ runs:
         
         echo "scripts-version=$(echo "$BUILD_CONFIG" | jq -r '.versioning.scriptsVersion // "main"')" >> $GITHUB_OUTPUT
 
-        echo "tf-module-path=$(echo "$DEPLOY_CONFIG" | jq -r '.${{ github.head_ref || github.ref_name }}.modulePath')" >> $GITHUB_OUTPUT
-        echo "tfvars-file=$(echo "$DEPLOY_CONFIG" | jq -r '.${{ github.head_ref || github.ref_name }}.tfvarsFile')" >> $GITHUB_OUTPUT
+        # Extract all environments and build JSON array of tfvars file paths
+        ENVIRONMENTS=$(echo "$DEPLOY_CONFIG" | jq -r 'keys[]')
+        TFVARS_FILES_ARRAY="[]"
+        FILES_COUNT=0
+        
+        for env in $ENVIRONMENTS; do
+          MODULE_PATH=$(echo "$DEPLOY_CONFIG" | jq -r ".$env.modulePath // null")
+          TFVARS_FILE=$(echo "$DEPLOY_CONFIG" | jq -r ".$env.tfvarsFile // null")
+          
+          # Only include environments that have both modulePath and tfvarsFile
+          if [ "$MODULE_PATH" != "null" ] && [ "$TFVARS_FILE" != "null" ]; then
+            FULL_PATH="$MODULE_PATH/$TFVARS_FILE"
+            TFVARS_FILES_ARRAY=$(echo "$TFVARS_FILES_ARRAY" | jq ". += [\"$FULL_PATH\"]")
+            FILES_COUNT=$((FILES_COUNT + 1))
+          fi
+        done
+        
+        echo "tfvars-files=$(echo "$TFVARS_FILES_ARRAY" | jq -c .)" >> $GITHUB_OUTPUT
+        echo "tfvars-files-count=$FILES_COUNT" >> $GITHUB_OUTPUT
 
         echo "tag-prefix=$(echo "$BUILD_CONFIG" | jq -r '.github.tagPrefix')" >> $GITHUB_OUTPUT
         
@@ -156,8 +173,8 @@ runs:
         echo "    - script: $(echo "$BUILD_CONFIG" | jq -r '.versioning.script')"
         echo "    - scriptsVersion: $(echo "$BUILD_CONFIG" | jq -r '.versioning.scriptsVersion // "main"')"
         echo "  Terraform:"
-        echo "    - modulePath: $(echo "$DEPLOY_CONFIG" | jq -r '.${{ github.head_ref || github.ref_name }}.modulePath')"
-        echo "    - tfvarsFile: $(echo "$DEPLOY_CONFIG" | jq -r '.${{ github.head_ref || github.ref_name }}.tfvarsFile')"
+        echo "    - tfvarsFiles: $(echo "$TFVARS_FILES_ARRAY" | jq -c .)"
+        echo "    - filesCount: $FILES_COUNT"
         echo "  GitHub:"
         echo "    - tagScript: $(echo "$BUILD_CONFIG" | jq -r '.github.tagScript')"
         echo "    - tagPrefix: $(echo "$BUILD_CONFIG" | jq -r '.github.tagPrefix')"

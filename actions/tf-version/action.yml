@@ -1,21 +1,56 @@
 name: 'TfVars'
-description: 'Updates a tfvars file'
+description: 'Updates tfvars files with specified version'
 
 inputs:
   version:
     description: 'The version to sync to'
     required: true
-  tfvars-file:
-    description: 'The path to the tfvars file to update'
+  tfvars-files:
+    description: 'JSON array of full paths to tfvars files to update'
     required: true
   scripts-version:
     description: 'The version of the scripts to use'
     required: false
     default: 'main'
 
+outputs:
+  files-updated:
+    description: 'Number of tfvars files that were updated'
+    value: ${{ steps.update.outputs.files-updated }}
+  updated-files:
+    description: 'JSON array of file paths that were actually updated'
+    value: ${{ steps.update.outputs.updated-files }}
+
 runs:
   using: 'composite'
   steps:
+
+  - name: TfVars Action Started
+    shell: bash
+    run: |
+      echo "🚀 Starting TfVars Action"
+      echo "All inputs received:"
+      echo "  - version: ${{ inputs.version }}"
+      echo "  - scripts-version: ${{ inputs.scripts-version }}"
+      echo "  - tfvars-files: ${{ inputs.tfvars-files }}"
+      
+      # Validate inputs
+      TFVARS_FILES="${{ inputs.tfvars-files }}"
+      
+      if [ -z "$TFVARS_FILES" ] || [ "$TFVARS_FILES" == "[]" ] || [ "$TFVARS_FILES" == "null" ]; then
+        echo "❌ Error: 'tfvars-files' must be provided and cannot be empty"
+        exit 1
+      fi
+      
+      # Validate JSON
+      if ! echo "$TFVARS_FILES" | jq empty 2>/dev/null; then
+        echo "❌ Invalid JSON received for tfvars-files"
+        exit 1
+      fi
+      
+      echo "✅ Valid JSON received for tfvars-files"
+      echo "� Files to process:"
+      echo "$TFVARS_FILES" | jq -r '.[] | "  - \(.)"'
 
   - name: Download required scripts
     uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/get-scripts@main
@@ -23,7 +58,85 @@ runs:
       scripts: "scripts/ci_tf.sh scripts/ci_utils.sh"
       scripts-version: ${{ inputs.scripts-version }}
 
-  - name: Sync tfvars with deployment version
+  - name: Update tfvars files
+    id: update
     shell: bash
     run: |
-      ./scripts/ci_tf.sh sync-tfvars ${{ inputs.version }} ${{ inputs.tfvars-file }}
+      VERSION="${{ inputs.version }}"
+      TFVARS_FILES='${{ inputs.tfvars-files }}'
+      
+      echo "🔄 Processing tfvars files..."
+      
+      UPDATED_COUNT=0
+      UPDATED_FILES="[]"
+      TOTAL_COUNT=$(echo "$TFVARS_FILES" | jq length)
+      
+      echo "📊 Found $TOTAL_COUNT tfvars files to process"
+      
+      # Process each tfvars file
+      rm -f /tmp/updated_files.txt
+      
+      # Get array length for iteration
+      for i in $(seq 0 $((TOTAL_COUNT - 1))); do
+        TFVARS_FILE=$(echo "$TFVARS_FILES" | jq -r ".[$i]")
+        
+        echo ""
+        echo "📄 Processing tfvars file: $TFVARS_FILE"
+        
+        # Check if tfvars file exists
+        if [ ! -f "$TFVARS_FILE" ]; then
+          echo "⚠️ Tfvars file not found: $TFVARS_FILE - skipping"
+          continue
+        fi
+        
+        # Check if tfvars already has the correct version to avoid unnecessary commits
+        if grep -q ":$VERSION\"" "$TFVARS_FILE"; then
+          echo "✅ File already has correct version: $VERSION"
+        else
+          echo "🔄 Updating tfvars file to version: $VERSION"
+          
+          # Update this tfvars file
+          if ./scripts/ci_tf.sh sync-tfvars "$VERSION" "$TFVARS_FILE"; then
+            echo "✅ Successfully updated $TFVARS_FILE"
+            
+            # Track this update
+            echo "$TFVARS_FILE" >> /tmp/updated_files.txt
+          else
+            echo "❌ Failed to update $TFVARS_FILE"
+          fi
+        fi
+      done
+      
+      # Count and report results
+      if [ -f /tmp/updated_files.txt ]; then
+        UPDATED_COUNT=$(wc -l < /tmp/updated_files.txt)
+        
+        # Build JSON array of updated files
+        UPDATED_FILES="[]"
+        while read -r file_path; do
+          UPDATED_FILES=$(echo "$UPDATED_FILES" | jq ". += [\"$file_path\"]")
+        done < /tmp/updated_files.txt
+        
+        rm -f /tmp/updated_files.txt
+      else
+        UPDATED_COUNT=0
+        UPDATED_FILES="[]"
+      fi
+      
+      echo ""
+      echo "📋 Summary:"
+      echo "  - Total tfvars files: $TOTAL_COUNT"
+      echo "  - Updated files: $UPDATED_COUNT"
+      echo "  - Updated list: $(echo "$UPDATED_FILES" | jq -c .)"
+      
+      # Set outputs
+      echo "files-updated=$UPDATED_COUNT" >> $GITHUB_OUTPUT
+      echo "updated-files=$(echo "$UPDATED_FILES" | jq -c .)" >> $GITHUB_OUTPUT
+
+  - name: TfVars update complete
+    shell: bash
+    run: |
+      echo "🎉 TfVars update completed"
+      echo "📊 Final results:"
+      echo "  - Files updated: ${{ steps.update.outputs.files-updated }}"
+      echo "  - Updated files: ${{ steps.update.outputs.updated-files }}"

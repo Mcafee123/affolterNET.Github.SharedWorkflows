@@ -87,8 +87,8 @@ jobs:
           echo "    - update-version: ${{ inputs.update-version }}"
           echo "    - scripts-version: ${{ steps.config.outputs.scripts-version }}"
           echo "  Terraform inputs:"
-          echo "    - tf-module-path: ${{ steps.config.outputs.tf-module-path }}"
-          echo "    - tfvars-file: ${{ steps.config.outputs.tfvars-file }}"
+          echo "    - tfvars-files: ${{ steps.config.outputs.tfvars-files }}"
+          echo "    - tfvars-files-count: ${{ steps.config.outputs.tfvars-files-count }}"
           echo "  Secrets provided:"
           echo "    - acr-username: $([ -n '${{ secrets.acr-username }}' ] && echo 'Yes' || echo 'No')"
           echo "    - acr-password: $([ -n '${{ secrets.acr-password }}' ] && echo 'Yes' || echo 'No')"
@@ -125,10 +125,10 @@ jobs:
 
       - name: Sync tfvars with deployment version
         uses: Mcafee123/affolterNET.Github.SharedWorkflows/actions/tf-version@main
-        if: ${{ steps.config.outputs.tf-module-path != '' && steps.config.outputs.tfvars-file != '' }}
+        if: ${{ steps.config.outputs.tfvars-files != '[]' && steps.config.outputs.tfvars-files != '' }}
         with:
           version: ${{ steps.version.outputs.version }}
-          tfvars-file: ${{ steps.config.outputs.tf-module-path }}/${{ steps.config.outputs.tfvars-file }}
+          tfvars-files: ${{ steps.config.outputs.tfvars-files }}
           scripts-version: ${{ steps.config.outputs.scripts-version }}
 
       - name: Create Git tag
