@@ -188,7 +188,6 @@ jobs:
         terraform plan -out=tfplan
         echo "plan_status=success" >> $GITHUB_OUTPUT
       working-directory: ${{ steps.config.outputs.tf-module-path }}
-      continue-on-error: true
       env:
         ARM_CLIENT_ID: ${{ secrets.arm-client-id }}
         ARM_CLIENT_SECRET: ${{ secrets.arm-client-secret }}
@@ -198,7 +197,6 @@ jobs:
 
     - name: Terraform Apply
       id: apply
-      if: steps.plan.outputs.plan_status == 'success'
       run: |
         terraform apply -auto-approve tfplan
         echo "apply_status=success" >> $GITHUB_OUTPUT
@@ -216,7 +214,6 @@ jobs:
       working-directory: ${{ steps.config.outputs.tf-module-path }}
 
     - name: Create deployment summary
-      if: steps.apply.outputs.apply_status == 'success'
       run: |
         VERSION="${{ needs.prepare.outputs.version }}"
         TAG="${{ needs.prepare.outputs.tag }}"
