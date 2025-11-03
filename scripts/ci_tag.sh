@@ -95,7 +95,12 @@ create_tag() {
     local registry_name="$3"
     local image_name="$4"
     
-    local tag_name="${tag_prefix}-${version}"
+    # Handle empty tag_prefix
+    if [ -z "$tag_prefix" ]; then
+        local tag_name="$version"
+    else
+        local tag_name="${tag_prefix}-${version}"
+    fi
     
     log "Creating tag: $tag_name"
     
