@@ -1,0 +1,47 @@
+name: 'Versioning'
+description: 'Reads or updates versions'
+
+inputs:
+  project_file:
+    description: 'The path to the project file (e.g., .csproj, package.json)'
+    required: true
+  action:
+    description: 'The action to perform (read or update)'
+    required: false
+    default: 'read'
+  scripts-version:
+    description: 'The version of the scripts to use'
+    required: false
+    default: 'main'
+outputs:
+  version:
+    description: 'The current version of the project'
+    value: ${{ steps.version.outputs.version }}
+  version_changed:
+    description: 'Whether the version was changed'
+    value: ${{ steps.version.outputs.version_changed }}
+  old_version:
+    description: 'The previous version before any changes'
+    value: ${{ steps.version.outputs.old_version }}
+  docker_tag:
+    description: 'Docker tag to use (same as version)'
+    value: ${{ steps.version.outputs.docker_tag }}
+
+runs:
+  using: 'composite'
+  steps:
+
+  - name: Get version scripts
+    uses: affolterNET/affolterNET.Github.SharedWorkflows/actions/get-scripts@main
+    with:
+      scripts: "scripts/ci_version.sh scripts/ci_utils.sh"
+      scripts-version: ${{ inputs.scripts-version }}
+      github-token: ${{ github.token }}
+
+  - name: Get version from project file
+    id: version
+    shell: bash
+    run: |
+      echo "Updating version in project file..."
+      echo "Running: ./scripts/ci_version.sh ${{ inputs.action }} ${{ inputs.project_file }}"
+      ./scripts/ci_version.sh ${{ inputs.action }} ${{ inputs.project_file }} >> $GITHUB_OUTPUT

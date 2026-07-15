@@ -1,0 +1,78 @@
+name: 'TfVars'
+description: 'Updates tfvars files with specified version'
+
+inputs:
+  version:
+    description: 'The version to sync to'
+    required: true
+  tfvars-files:
+    description: 'Space-separated list of full paths to tfvars files to update'
+    required: true
+  scripts-version:
+    description: 'The version of the scripts to use'
+    required: false
+    default: 'main'
+
+outputs:
+  files-updated:
+    description: 'Number of tfvars files that were updated'
+    value: ${{ steps.update.outputs.files-updated }}
+  updated-files:
+    description: 'Space-separated list of file paths that were actually updated'
+    value: ${{ steps.update.outputs.updated-files }}
+
+runs:
+  using: 'composite'
+  steps:
+
+  - name: TfVars Action Started
+    shell: bash
+    run: |
+      echo "🚀 Starting TfVars Action"
+      echo "All inputs received:"
+      echo "  - version: ${{ inputs.version }}"
+      echo "  - scripts-version: ${{ inputs.scripts-version }}"
+      echo "  - tfvars-files: ${{ inputs.tfvars-files }}"
+      
+      # Validate inputs
+      TFVARS_FILES="${{ inputs.tfvars-files }}"
+      
+      if [ -z "$TFVARS_FILES" ]; then
+        echo "❌ Error: 'tfvars-files' must be provided and cannot be empty"
+        exit 1
+      fi
+      
+      echo "🔍 Files to process:"
+      for file in $TFVARS_FILES; do
+        echo "  - $file"
+      done
+
+  - name: Download required scripts
+    uses: affolterNET/affolterNET.Github.SharedWorkflows/actions/get-scripts@main
+    with:
+      scripts: "scripts/ci_tf.sh scripts/ci_utils.sh"
+      scripts-version: ${{ inputs.scripts-version }}
+
+  - name: Update tfvars files
+    id: update
+    shell: bash
+    run: |
+      VERSION="${{ inputs.version }}"
+      TFVARS_FILES="${{ inputs.tfvars-files }}"
+      
+      echo "🔄 Calling ci_tf.sh script to process tfvars files..."
+      
+      # Call the script with multiple files - pass version and all files as arguments
+      ./scripts/ci_tf.sh sync-multiple-tfvars "$VERSION" $TFVARS_FILES
+      
+      # The script outputs will be captured for GitHub Actions
+      echo "files-updated=0" >> $GITHUB_OUTPUT
+      echo "updated-files=" >> $GITHUB_OUTPUT
+
+  - name: TfVars update complete
+    shell: bash
+    run: |
+      echo "🎉 TfVars update completed"
+      echo "📊 Final results:"
+      echo "  - Files updated: ${{ steps.update.outputs.files-updated }}"
+      echo "  - Updated files: ${{ steps.update.outputs.updated-files }}"

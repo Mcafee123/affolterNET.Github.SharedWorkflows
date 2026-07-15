@@ -1,18 +1,35 @@
 name: 'Check open PR'
-secrets:
+inputs:
   github-token:
     description: 'GitHub token to access the repository and pull requests'
     required: true
+
+outputs:
+  pr_running_to_main:
+    description: 'Whether there is an open PR from current branch to main'
+    value: ${{ steps.check-pr.outputs.pr_running_to_main }}
 
 runs:
   using: 'composite'
   steps:
 
+  - name: Check Open PR Action Started
+    shell: bash
+    run: |
+      echo "🚀 Starting Check Open PR Action"
+      echo "All inputs received:"
+      echo "  - github-token: $([ -n '${{ inputs.github-token }}' ] && echo 'Provided' || echo 'Not provided')"
+      echo "Context info:"
+      echo "  - event_name: ${{ github.event_name }}"
+      echo "  - ref_name: ${{ github.ref_name }}"
+      echo "  - repository: ${{ github.repository }}"
+
   - name: Check for open PR to main
     id: check-pr
     if: github.event_name == 'push'
+    shell: bash
     env:
-      GH_TOKEN: ${{ secrets.github-token }}
+      GH_TOKEN: ${{ inputs.github-token }}
     run: |
       # Check if there's an open PR from current branch to main
       pr_count=$(gh pr list --repo ${{ github.repository }} --head "${{ github.ref_name }}" --base main --json number | jq length)

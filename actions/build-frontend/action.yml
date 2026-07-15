@@ -1,0 +1,51 @@
+name: Build Frontend
+description: 'Builds the frontend project'
+inputs:
+  frontend-root:
+    description: 'Root directory of the frontend project'
+    required: true
+    type: string
+  build-command:
+    description: 'Command to build the frontend'
+    required: false
+    default: 'npm run build'
+    type: string
+  node-version:
+    description: 'Node.js version to use'
+    required: false
+    default: '20.x'
+    type: string
+
+runs:
+  using: 'composite'
+  steps:
+
+    - name: Build Frontend Action Started
+      shell: bash
+      run: |
+        echo "🚀 Starting Build Frontend Action"
+        echo "All inputs received:"
+        echo "  - frontend-root: ${{ inputs.frontend-root }}"
+        echo "  - build-command: ${{ inputs.build-command }}"
+        echo "  - node-version: ${{ inputs.node-version }}"
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v6
+      with:
+        node-version: ${{ inputs.node-version }}
+        cache: 'npm'
+        cache-dependency-path: ${{ inputs.frontend-root }}/package-lock.json
+
+    - name: Install dependencies
+      shell: bash
+      run: |
+        echo "Installing npm dependencies..."
+        cd ${{ inputs.frontend-root }}
+        npm install
+
+    - name: Build Frontend
+      shell: bash
+      run: |
+        echo "Building frontend project..."
+        cd ${{ inputs.frontend-root }}
+        ${{ inputs.build-command }}

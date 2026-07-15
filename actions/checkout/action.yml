@@ -1,0 +1,51 @@
+name: 'Checkout Code'
+inputs:
+  fetch-depth:
+    description: 'Fetch depth for git history'
+    required: false
+    default: 1
+  ref:
+    description: 'Git ref (branch, tag, or commit SHA) to checkout'
+    required: false
+    default: ''
+
+runs:
+  using: 'composite'
+  steps:
+
+    - name: Check if already checked out
+      id: check_status
+      shell: bash
+      run: |
+        if [ -d ".git" ] && [ -f "README.md" ]; then
+          echo "✅ Repository already checked out, skipping checkout step"
+          echo "already_checked_out=true" >> $GITHUB_OUTPUT
+        else
+          echo "🚀 Starting Checkout Action - repository not yet checked out"
+          echo "already_checked_out=false" >> $GITHUB_OUTPUT
+        fi
+        echo "All inputs received:"
+        echo "  - fetch-depth: ${{ inputs.fetch-depth }}"
+        echo "  - ref: ${{ inputs.ref }}"
+
+    - name: Checkout code
+      if: steps.check_status.outputs.already_checked_out == 'false'
+      uses: actions/checkout@v6
+      with:
+        fetch-depth: ${{ inputs.fetch-depth }}
+        ref: ${{ inputs.ref != '' && inputs.ref || (github.head_ref || github.ref_name) }}
+        token: ${{ github.token }}
+
+    - name: Debug checkout context
+      shell: bash
+      run: |
+        echo "Event: ${{ github.event_name }}"
+        echo "Ref: ${{ github.ref_name }}"
+        echo "Head Ref: ${{ github.head_ref }}"
+        if [ -d ".git" ]; then
+          echo "Current commit: $(git rev-parse HEAD)"
+          echo "Current branch: $(git branch --show-current)"
+        else
+          echo "Git repository not available"
+        fi
+        echo "Checkout status: ${{ steps.check_status.outputs.already_checked_out == 'true' && 'Already done' || 'Just completed' }}"

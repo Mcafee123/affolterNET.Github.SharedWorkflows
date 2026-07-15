@@ -1,0 +1,83 @@
+name: 'Get Scripts'
+description: 'Downloads and sets up common build scripts from shared repository'
+inputs:
+  scripts:
+    description: 'The scripts to download (space-separated list, e.g., "scripts/ci_version.sh scripts/ci_tf.sh scripts/ci_utils.sh")'
+    required: true 
+  scripts-version:
+    description: 'Version/tag of scripts to use'
+    required: false
+    default: 'main'
+  github-token:
+    description: 'GitHub token for accessing private repositories'
+    required: false
+    default: ${{ github.token }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Get Scripts Action Started
+      shell: bash
+      run: |
+        echo "🚀 Starting Get Scripts Action"
+        echo "All inputs received:"
+        echo "  - scripts: ${{ inputs.scripts }}"
+        echo "  - scripts-version: ${{ inputs.scripts-version }}"
+        echo "  - github-token: $([ -n '${{ inputs.github-token }}' ] && echo 'Provided' || echo 'Not provided')"
+
+    - name: Download and verify scripts from shared repository
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        REPO_OWNER: McAfee123
+        REPO_NAME: affolterNET.Github.SharedWorkflows
+        SCRIPTS_VERSION: ${{ inputs.scripts-version }}
+        SCRIPTS_LIST: ${{ inputs.scripts }}
+      run: |
+        echo "📥 Downloading scripts from shared repository..."
+        echo "Scripts to download: $SCRIPTS_LIST"
+        
+        # Create scripts directory if it doesn't exist
+        mkdir -p scripts
+        
+        # Convert space-separated list to array
+        read -ra SCRIPTS_ARRAY <<< "$SCRIPTS_LIST"
+        
+        # Download each script
+        for script_path in "${SCRIPTS_ARRAY[@]}"; do
+          echo "📄 Processing: $script_path"
+          
+          # Clean up existing version if it exists
+          if [ -f "$script_path" ]; then
+            echo "🧹 Removing existing $script_path..."
+            rm "$script_path"
+          fi
+          
+          echo "Downloading $script_path..."
+          curl -H "Authorization: token $GITHUB_TOKEN" \
+               -H "Accept: application/vnd.github.v3.raw" \
+               -L "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/contents/$script_path?ref=$SCRIPTS_VERSION" \
+               -o "$script_path"
+          
+          # Make script executable
+          chmod +x "$script_path"
+          echo "✅ Downloaded and set executable: $script_path"
+        done
+        
+        echo "✅ All scripts downloaded successfully"
+        
+        # Verify the downloaded scripts
+        echo "🔍 Verifying downloaded scripts..."
+        ls -la scripts/
+        
+        # Basic validation for each script
+        for script_path in "${SCRIPTS_ARRAY[@]}"; do
+          if [ -f "$script_path" ] && [ -x "$script_path" ]; then
+            echo "✅ $script_path - OK (executable)"
+          else
+            echo "❌ $script_path - FAILED (not found or not executable)"
+            exit 1
+          fi
+        done
+        
+        echo "✅ All scripts verified successfully"

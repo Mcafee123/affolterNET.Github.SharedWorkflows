@@ -1,0 +1,198 @@
+# actions/load-config/action.yml
+name: 'Load Application Configuration'
+description: 'Loads and parses application configuration from JSON file'
+
+inputs:
+  build-file:
+    description: 'Path to configuration JSON file'
+    required: true
+  deploy-file:
+    description: 'Path to deployment configuration JSON file'
+    required: true
+
+outputs:
+  # Frontend outputs
+  build-frontend:
+    description: "Whether to build the frontend"
+    value: ${{ steps.parse.outputs.build-frontend }}
+  frontend-root:
+    description: "Frontend root directory"
+    value: ${{ steps.parse.outputs.frontend-root }}
+  frontend-build-command:
+    description: "Frontend build command"
+    value: ${{ steps.parse.outputs.frontend-build-command }}
+  node-version:
+    description: "Node.js version"
+    value: ${{ steps.parse.outputs.node-version }}
+    
+  # Backend outputs
+  backend-root:
+    description: "Backend root directory"
+    value: ${{ steps.parse.outputs.backend-root }}
+  backend-folder:
+    description: "Backend project folder"
+    value: ${{ steps.parse.outputs.backend-folder }}
+  backend-project-file:
+    description: "Backend project file"
+    value: ${{ steps.parse.outputs.backend-project-file }}
+    
+  # Docker outputs
+  image-name:
+    description: "Docker image name"
+    value: ${{ steps.parse.outputs.image-name }}
+  registry-name:
+    description: "Container registry name"
+    value: ${{ steps.parse.outputs.registry-name }}
+  dockerfile:
+    description: "Dockerfile path"
+    value: ${{ steps.parse.outputs.dockerfile }}
+    
+  # Terraform outputs
+  tfvars-files:
+    description: "Space-separated list of full paths to all tfvars files"
+    value: ${{ steps.parse.outputs.tfvars-files }}
+  tfvars-files-count:
+    description: "Number of tfvars files found"
+    value: ${{ steps.parse.outputs.tfvars-files-count }}
+  tf-module-path:
+    description: "The path for the current workflow (main for PROD, develop for DEV)"
+    value: ${{ steps.parse.outputs.tf-module-path }}
+    
+  # Versioning outputs
+  scripts-version:
+    description: "Scripts version to use"
+    value: ${{ steps.parse.outputs.scripts-version }}
+    
+  # GitHub outputs
+  tag-prefix:
+    description: "Git tag prefix"
+    value: ${{ steps.parse.outputs.tag-prefix }}
+  pr-running-to-main:
+    description: "Whether there's an open PR to main"
+    value: ${{ steps.check-pr.outputs.pr_running_to_main }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Load Configuration Action Started
+      shell: bash
+      run: |
+        echo "🚀 Starting Load Configuration Action"
+        echo "All inputs received:"
+        echo "  - build-file: ${{ inputs.build-file }}"
+        echo "  - deploy-file: ${{ inputs.deploy-file }}"
+
+    - name: Load and parse configuration
+      id: parse
+      shell: bash
+      run: |
+        # Check if build config file exists
+        if [ ! -f "${{ inputs.build-file }}" ]; then
+          echo "❌ Build configuration file not found: ${{ inputs.build-file }}"
+          exit 1
+        fi
+
+        # Check if deploy config file exists
+        if [ ! -f "${{ inputs.deploy-file }}" ]; then
+          echo "❌ Deploy configuration file not found: ${{ inputs.deploy-file }}"
+          exit 1
+        fi
+        
+        # Load JSON files
+        BUILD_CONFIG=$(cat "${{ inputs.build-file }}")
+        DEPLOY_CONFIG=$(cat "${{ inputs.deploy-file }}")
+        
+        # Validate JSON
+        if ! echo "$BUILD_CONFIG" | jq empty 2>/dev/null; then
+          echo "❌ Invalid JSON in build configuration file: ${{ inputs.build-file }}"
+          exit 1
+        fi
+
+        # Validate JSON
+        if ! echo "$DEPLOY_CONFIG" | jq empty 2>/dev/null; then
+          echo "❌ Invalid JSON in deploy configuration file: ${{ inputs.deploy-file }}"
+          exit 1
+        fi
+        
+        # Debug: Show the loaded configuration
+        echo "🔍 Loaded configuration:"
+        echo "$BUILD_CONFIG" | jq .
+        echo "$DEPLOY_CONFIG" | jq .
+        
+        # Extract values using jq and set as outputs
+        echo "build-frontend=$(echo "$BUILD_CONFIG" | jq -r '.frontend.buildFrontend')" >> $GITHUB_OUTPUT
+        echo "frontend-root=$(echo "$BUILD_CONFIG" | jq -r '.frontend.root // "frontend"')" >> $GITHUB_OUTPUT
+        echo "frontend-build-command=$(echo "$BUILD_CONFIG" | jq -r '.frontend.buildCommand // "npm run build"')" >> $GITHUB_OUTPUT
+        echo "node-version=$(echo "$BUILD_CONFIG" | jq -r '.frontend.nodeVersion // "20.x"')" >> $GITHUB_OUTPUT
+        
+        echo "backend-root=$(echo "$BUILD_CONFIG" | jq -r '.backend.root')" >> $GITHUB_OUTPUT
+        echo "backend-folder=$(echo "$BUILD_CONFIG" | jq -r '.backend.folder')" >> $GITHUB_OUTPUT
+        echo "backend-project-file=$(echo "$BUILD_CONFIG" | jq -r '.backend.projectFile')" >> $GITHUB_OUTPUT
+        
+        echo "image-name=$(echo "$BUILD_CONFIG" | jq -r '.docker.imageName')" >> $GITHUB_OUTPUT
+        echo "registry-name=$(echo "$BUILD_CONFIG" | jq -r '.docker.registryName')" >> $GITHUB_OUTPUT
+        echo "dockerfile=$(echo "$BUILD_CONFIG" | jq -r '.docker.dockerfile // "Dockerfile"')" >> $GITHUB_OUTPUT
+        
+        echo "scripts-version=$(echo "$BUILD_CONFIG" | jq -r '.versioning.scriptsVersion // "main"')" >> $GITHUB_OUTPUT
+
+        # Extract all environments and build space-separated list of tfvars file paths
+        ENVIRONMENTS=$(echo "$DEPLOY_CONFIG" | jq -r 'keys[]')
+        TFVARS_FILES_LIST=""
+        FILES_COUNT=0
+        
+        for env in $ENVIRONMENTS; do
+          MODULE_PATH=$(echo "$DEPLOY_CONFIG" | jq -r ".$env.modulePath // null")
+          TFVARS_FILE=$(echo "$DEPLOY_CONFIG" | jq -r ".$env.tfvarsFile // null")
+          
+          # Only include environments that have both modulePath and tfvarsFile
+          if [ "$MODULE_PATH" != "null" ] && [ "$TFVARS_FILE" != "null" ]; then
+            FULL_PATH="$MODULE_PATH/$TFVARS_FILE"
+            if [ $FILES_COUNT -eq 0 ]; then
+              TFVARS_FILES_LIST="$FULL_PATH"
+            else
+              TFVARS_FILES_LIST="$TFVARS_FILES_LIST $FULL_PATH"
+            fi
+            FILES_COUNT=$((FILES_COUNT + 1))
+          fi
+        done
+        
+        echo "tfvars-files=$TFVARS_FILES_LIST" >> $GITHUB_OUTPUT
+        echo "tfvars-files-count=$FILES_COUNT" >> $GITHUB_OUTPUT
+        
+        # Set tf-module-path for the current deployment (based on branch)
+        echo "tf-module-path=$(echo "$DEPLOY_CONFIG" | jq -r '.${{ github.head_ref || github.ref_name }}.modulePath')" >> $GITHUB_OUTPUT
+
+        echo "tag-prefix=$(echo "$BUILD_CONFIG" | jq -r '.github.tagPrefix')" >> $GITHUB_OUTPUT
+        
+        # Debug: Show all extracted values
+        echo "🔍 Extracted values:"
+        echo "  Frontend:"
+        echo "    - buildFrontend: $(echo "$BUILD_CONFIG" | jq -r '.frontend.buildFrontend')"
+        echo "    - root: $(echo "$BUILD_CONFIG" | jq -r '.frontend.root // "frontend"')"
+        echo "    - buildCommand: $(echo "$BUILD_CONFIG" | jq -r '.frontend.buildCommand // "npm run build"')"
+        echo "    - nodeVersion: $(echo "$BUILD_CONFIG" | jq -r '.frontend.nodeVersion // "20.x"')"
+        echo "  Backend:"
+        echo "    - root: $(echo "$BUILD_CONFIG" | jq -r '.backend.root')"
+        echo "    - folder: $(echo "$BUILD_CONFIG" | jq -r '.backend.folder')"
+        echo "    - projectFile: $(echo "$BUILD_CONFIG" | jq -r '.backend.projectFile')"
+        echo "  Docker:"
+        echo "    - imageName: $(echo "$BUILD_CONFIG" | jq -r '.docker.imageName')"
+        echo "    - registryName: $(echo "$BUILD_CONFIG" | jq -r '.docker.registryName')"
+        echo "    - dockerfile: $(echo "$BUILD_CONFIG" | jq -r '.docker.dockerfile // "Dockerfile"')"
+        echo "  Versioning:"
+        echo "    - script: $(echo "$BUILD_CONFIG" | jq -r '.versioning.script')"
+        echo "    - scriptsVersion: $(echo "$BUILD_CONFIG" | jq -r '.versioning.scriptsVersion // "main"')"
+        echo "  Terraform:"
+        echo "    - tfvarsFiles: $TFVARS_FILES_LIST"
+        echo "    - filesCount: $FILES_COUNT"
+        echo "    - tfModulePath: $(echo "$DEPLOY_CONFIG" | jq -r '.${{ github.head_ref || github.ref_name }}.modulePath')"
+        echo "  GitHub:"
+        echo "    - tagScript: $(echo "$BUILD_CONFIG" | jq -r '.github.tagScript')"
+        echo "    - tagPrefix: $(echo "$BUILD_CONFIG" | jq -r '.github.tagPrefix')"
+        
+    - name: Check for open PR to main
+      id: check-pr
+      if: github.event_name == 'push'
+      uses: affolterNET/affolterNET.Github.SharedWorkflows/actions/check-open-pr@main
+      with:
+        github-token: ${{ github.token }}
