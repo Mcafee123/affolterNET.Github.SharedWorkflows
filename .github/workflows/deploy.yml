@@ -30,6 +30,11 @@ on:
         required: false
         type: boolean
         default: false
+      environment:
+        description: "GitHub environment for the deploy job. When set, call this workflow with `secrets: inherit` so environment-scoped secrets (SSH_PRIVATE_KEY, AZURE_CREDENTIALS, ARM_*, ACR_*) resolve. Empty = no environment (backward compatible)."
+        required: false
+        type: string
+        default: ""
 
     secrets:
 
@@ -120,6 +125,7 @@ jobs:
   deploy:
     name: 'deploy: ${{ needs.prepare.outputs.tag }}'
     runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
     needs: prepare
     steps:
 
@@ -152,14 +158,14 @@ jobs:
         echo "  Terraform inputs:"
         echo "    - tf-module-path: ${{ steps.config.outputs.tf-module-path }}"
         echo "  Secrets provided:"
-        echo "    - ssh-private-key: $([ -n '${{ secrets.ssh-private-key }}' ] && echo 'Yes' || echo 'No')"
-        echo "    - azure-credentials: $([ -n '${{ secrets.azure-credentials }}' ] && echo 'Yes' || echo 'No')"
-        echo "    - arm-client-id: $([ -n '${{ secrets.arm-client-id }}' ] && echo 'Yes' || echo 'No')"
-        echo "    - arm-client-secret: $([ -n '${{ secrets.arm-client-secret }}' ] && echo 'Yes' || echo 'No')"
-        echo "    - arm-tenant-id: $([ -n '${{ secrets.arm-tenant-id }}' ] && echo 'Yes' || echo 'No')"
-        echo "    - arm-subscription-id: $([ -n '${{ secrets.arm-subscription-id }}' ] && echo 'Yes' || echo 'No')"
-        echo "    - acr-username: $([ -n '${{ secrets.acr-username }}' ] && echo 'Yes' || echo 'No')"
-        echo "    - acr-password: $([ -n '${{ secrets.acr-password }}' ] && echo 'Yes' || echo 'No')"
+        echo "    - ssh-private-key: $([ -n '${{ secrets.ssh-private-key || secrets.SSH_PRIVATE_KEY }}' ] && echo 'Yes' || echo 'No')"
+        echo "    - azure-credentials: $([ -n '${{ secrets.azure-credentials || secrets.AZURE_CREDENTIALS }}' ] && echo 'Yes' || echo 'No')"
+        echo "    - arm-client-id: $([ -n '${{ secrets.arm-client-id || secrets.ARM_CLIENT_ID }}' ] && echo 'Yes' || echo 'No')"
+        echo "    - arm-client-secret: $([ -n '${{ secrets.arm-client-secret || secrets.ARM_CLIENT_SECRET }}' ] && echo 'Yes' || echo 'No')"
+        echo "    - arm-tenant-id: $([ -n '${{ secrets.arm-tenant-id || secrets.ARM_TENANT_ID }}' ] && echo 'Yes' || echo 'No')"
+        echo "    - arm-subscription-id: $([ -n '${{ secrets.arm-subscription-id || secrets.ARM_SUBSCRIPTION_ID }}' ] && echo 'Yes' || echo 'No')"
+        echo "    - acr-username: $([ -n '${{ secrets.acr-username || secrets.ACR_USERNAME }}' ] && echo 'Yes' || echo 'No')"
+        echo "    - acr-password: $([ -n '${{ secrets.acr-password || secrets.ACR_PASSWORD }}' ] && echo 'Yes' || echo 'No')"
 
     - name: Install Trivy
       env:
@@ -189,8 +195,8 @@ jobs:
       uses: docker/login-action@v4
       with:
         registry: ${{ steps.config.outputs.registry-name }}
-        username: ${{ secrets.acr-username }}
-        password: ${{ secrets.acr-password }}
+        username: ${{ secrets.acr-username || secrets.ACR_USERNAME }}
+        password: ${{ secrets.acr-password || secrets.ACR_PASSWORD }}
 
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v4
@@ -201,21 +207,21 @@ jobs:
     - name: Azure Login
       uses: azure/login@v3
       with:
-        creds: ${{ secrets.azure-credentials }}
+        creds: ${{ secrets.azure-credentials || secrets.AZURE_CREDENTIALS }}
 
     - name: Setup SSH key for private repositories
       uses: webfactory/ssh-agent@v0.10.0
       with:
-        ssh-private-key: ${{ secrets.ssh-private-key }}
+        ssh-private-key: ${{ secrets.ssh-private-key || secrets.SSH_PRIVATE_KEY }}
 
     - name: Terraform Init
       run: terraform init -backend-config=_backend.hcl
       working-directory: ${{ steps.config.outputs.tf-module-path }}
       env:
-        ARM_CLIENT_ID: ${{ secrets.arm-client-id }}
-        ARM_CLIENT_SECRET: ${{ secrets.arm-client-secret }}
-        ARM_TENANT_ID: ${{ secrets.arm-tenant-id }}
-        ARM_SUBSCRIPTION_ID: ${{ secrets.arm-subscription-id }}
+        ARM_CLIENT_ID: ${{ secrets.arm-client-id || secrets.ARM_CLIENT_ID }}
+        ARM_CLIENT_SECRET: ${{ secrets.arm-client-secret || secrets.ARM_CLIENT_SECRET }}
+        ARM_TENANT_ID: ${{ secrets.arm-tenant-id || secrets.ARM_TENANT_ID }}
+        ARM_SUBSCRIPTION_ID: ${{ secrets.arm-subscription-id || secrets.ARM_SUBSCRIPTION_ID }}
         ARM_USE_CLI: false
 
     - name: Terraform Plan
@@ -225,10 +231,10 @@ jobs:
         echo "plan_status=success" >> $GITHUB_OUTPUT
       working-directory: ${{ steps.config.outputs.tf-module-path }}
       env:
-        ARM_CLIENT_ID: ${{ secrets.arm-client-id }}
-        ARM_CLIENT_SECRET: ${{ secrets.arm-client-secret }}
-        ARM_TENANT_ID: ${{ secrets.arm-tenant-id }}
-        ARM_SUBSCRIPTION_ID: ${{ secrets.arm-subscription-id }}
+        ARM_CLIENT_ID: ${{ secrets.arm-client-id || secrets.ARM_CLIENT_ID }}
+        ARM_CLIENT_SECRET: ${{ secrets.arm-client-secret || secrets.ARM_CLIENT_SECRET }}
+        ARM_TENANT_ID: ${{ secrets.arm-tenant-id || secrets.ARM_TENANT_ID }}
+        ARM_SUBSCRIPTION_ID: ${{ secrets.arm-subscription-id || secrets.ARM_SUBSCRIPTION_ID }}
         ARM_USE_CLI: false
 
     - name: Terraform Apply
@@ -238,10 +244,10 @@ jobs:
         echo "apply_status=success" >> $GITHUB_OUTPUT
       working-directory: ${{ steps.config.outputs.tf-module-path }}
       env:
-        ARM_CLIENT_ID: ${{ secrets.arm-client-id }}
-        ARM_CLIENT_SECRET: ${{ secrets.arm-client-secret }}
-        ARM_TENANT_ID: ${{ secrets.arm-tenant-id }}
-        ARM_SUBSCRIPTION_ID: ${{ secrets.arm-subscription-id }}
+        ARM_CLIENT_ID: ${{ secrets.arm-client-id || secrets.ARM_CLIENT_ID }}
+        ARM_CLIENT_SECRET: ${{ secrets.arm-client-secret || secrets.ARM_CLIENT_SECRET }}
+        ARM_TENANT_ID: ${{ secrets.arm-tenant-id || secrets.ARM_TENANT_ID }}
+        ARM_SUBSCRIPTION_ID: ${{ secrets.arm-subscription-id || secrets.ARM_SUBSCRIPTION_ID }}
         ARM_USE_CLI: false
 
     - name: Cleanup Terraform plan

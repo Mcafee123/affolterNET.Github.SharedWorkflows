@@ -23,6 +23,11 @@ on:
         description: "Update version"
         required: false
         type: boolean
+      environment:
+        description: "GitHub environment for the build job. When set, call this workflow with `secrets: inherit` so environment-scoped secrets (ACR_USERNAME, ACR_PASSWORD) resolve. Empty = no environment (backward compatible)."
+        required: false
+        type: string
+        default: ""
 
     secrets:
 
@@ -104,6 +109,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
     name: 'build: ${{ github.head_ref || github.ref_name }}'
     outputs:
       # Core build outputs
@@ -178,8 +184,8 @@ jobs:
           echo "    - tfvars-files-count: ${{ steps.config.outputs.tfvars-files-count }}"
           echo "    - tf-module-path: ${{ steps.config.outputs.tf-module-path }}"
           echo "  Secrets provided:"
-          echo "    - acr-username: $([ -n '${{ secrets.acr-username }}' ] && echo 'Yes' || echo 'No')"
-          echo "    - acr-password: $([ -n '${{ secrets.acr-password }}' ] && echo 'Yes' || echo 'No')"
+          echo "    - acr-username: $([ -n '${{ secrets.acr-username || secrets.ACR_USERNAME }}' ] && echo 'Yes' || echo 'No')"
+          echo "    - acr-password: $([ -n '${{ secrets.acr-password || secrets.ACR_PASSWORD }}' ] && echo 'Yes' || echo 'No')"
 
       - name: Version
         id: version
@@ -208,8 +214,8 @@ jobs:
           image-name: ${{ steps.config.outputs.image-name }}
           registry-name: ${{ steps.config.outputs.registry-name }}
           push: ${{ inputs.push }}
-          acr-username: ${{ secrets.acr-username }}
-          acr-password: ${{ secrets.acr-password }}
+          acr-username: ${{ secrets.acr-username || secrets.ACR_USERNAME }}
+          acr-password: ${{ secrets.acr-password || secrets.ACR_PASSWORD }}
 
       - name: Sync tfvars with deployment version
         uses: affolterNET/affolterNET.Github.SharedWorkflows/actions/tf-version@main
