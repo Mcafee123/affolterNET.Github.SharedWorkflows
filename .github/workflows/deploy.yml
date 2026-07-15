@@ -40,25 +40,25 @@ on:
 
       # Github
       ssh-private-key:
-        required: true
+        required: false
 
       # Azure
       azure-credentials:
-        required: true
+        required: false
       arm-client-id:
-        required: true
+        required: false
       arm-client-secret:
-        required: true
+        required: false
       arm-tenant-id:
-        required: true
+        required: false
       arm-subscription-id:
-        required: true
+        required: false
 
       # ACR
       acr-username:
-        required: true
+        required: false
       acr-password:
-        required: true
+        required: false
 
 jobs:
   prepare:
