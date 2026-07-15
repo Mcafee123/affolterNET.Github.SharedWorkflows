@@ -7,11 +7,11 @@ on:
       # Configuration
       build-file:
         description: "Path to build configuration JSON file"
-        required: false
+        required: true
         type: string
       deploy-file:
         description: "Path to deployment configuration JSON file"
-        required: false
+        required: true
         type: string
 
       # Deploy options
