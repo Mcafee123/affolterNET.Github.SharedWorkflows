@@ -85,7 +85,7 @@ jobs:
     - name: Load configuration (only if no tag and no image-version provided)
       if: inputs.tag == '' && inputs.image-version == ''
       id: config
-      uses: affolterNET/affolterNET.Github.SharedWorkflows/actions/load-config@main
+      uses: affolterNET/affolterNET.Github.SharedWorkflows/actions/load-config@release-flow
       with:
         build-file: ${{ inputs.build-file }}
         deploy-file: ${{ inputs.deploy-file }}
@@ -171,7 +171,7 @@ jobs:
     # Load configuration
     - name: Load configuration
       id: config
-      uses: affolterNET/affolterNET.Github.SharedWorkflows/actions/load-config@main
+      uses: affolterNET/affolterNET.Github.SharedWorkflows/actions/load-config@release-flow
       with:
         build-file: ${{ inputs.build-file }}
         deploy-file: ${{ inputs.deploy-file }}
