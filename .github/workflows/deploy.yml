@@ -139,6 +139,13 @@ jobs:
           echo "version=${{ inputs.image-version }}" >> $GITHUB_OUTPUT
         fi
 
+        # Contract guard: image-version without tag AND without ref would fall back to
+        # checking out the bare version string (not a git ref) and fail cryptically later.
+        if [ -n "${{ inputs.image-version }}" ] && [ -z "${{ inputs.tag }}" ] && [ -z "${{ inputs.ref }}" ]; then
+          echo "❌ image-version requires either 'tag' (rc/promote deploys) or 'ref' (ephemeral deploys pass the commit SHA) — there is no git ref to check out otherwise."
+          exit 1
+        fi
+
         # Checkout ref: explicit ref input (ephemeral deploys pass the commit SHA) or the
         # determined tag (input or generated) — the latter is today's behavior, unchanged.
         if [ -n "${{ inputs.ref }}" ]; then
@@ -248,20 +255,36 @@ jobs:
       with:
         ssh-private-key: ${{ secrets.ssh-private-key || secrets.SSH_PRIVATE_KEY }}
 
-    # release-flow: the deployed version is not committed anywhere — sync the tfvars in the
-    # workflow workspace only (inline sed, same replacement as ci_tf.sh sync-tfvars, but
-    # deliberately WITHOUT the action's commit+push, so nothing ever lands in the repo).
+    # release-flow EPHEMERAL deploys only (ref-based — tag-based deploys carry correctly
+    # committed tfvars at the checked-out tag): sync the tfvars in the workflow workspace,
+    # never committing. Anchored to the exact `image_name =` assignment (a loose pattern
+    # would also rewrite e.g. sidecar_image_name) and VERIFIED — a format drift must fail
+    # the deploy loudly, not silently apply the stale committed version.
     - name: Sync tfvars in-workspace (image-version)
-      if: ${{ inputs.image-version != '' && steps.config.outputs.tfvars-files != '' }}
+      if: ${{ inputs.image-version != '' && inputs.ref != '' && steps.config.outputs.tfvars-files != '' }}
       shell: bash
       run: |
         VERSION="${{ inputs.image-version }}"
         for f in ${{ steps.config.outputs.tfvars-files }}; do
           if [ -f "$f" ]; then
-            sed -i "s|\(image_name.*=.*\".*:\)[^\"]*\"|\1$VERSION\"|g" "$f"
-            echo "synced $f:"; grep "image_name" "$f" || true
+            sed -i "s|^\([[:space:]]*image_name[[:space:]]*=[[:space:]]*\".*:\)[^\"]*\"|\1$VERSION\"|" "$f"
+            if ! grep -q ":$VERSION\"" "$f"; then
+              echo "❌ tfvars sync failed: no image_name line in $f was updated to :$VERSION — the tfvars format has drifted from the expected 'image_name = \"registry/name:version\"'."
+              exit 1
+            fi
+            echo "synced $f:"; grep "image_name" "$f"
           fi
         done
+
+    # An empty module path would make terraform run in the repo root and fail late with a
+    # confusing 'No configuration files' — fail fast with the actual cause instead.
+    - name: Verify deploy target resolved
+      shell: bash
+      run: |
+        if [ -z "${{ steps.config.outputs.tf-module-path }}" ]; then
+          echo "❌ No deploy target for branch '${{ github.head_ref || github.ref_name }}' — add a mapping (modulePath/tfvarsFile) for it in the deploy configuration file."
+          exit 1
+        fi
 
     - name: Terraform Init
       run: terraform init -backend-config=_backend.hcl

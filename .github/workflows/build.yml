@@ -53,6 +53,9 @@ on:
       tag:
         description: 'The tag created for the build'
         value: ${{ jobs.build.outputs.tag }}
+      ephemeral:
+        description: 'true when the version is an ephemeral release-flow build (0.0.0-dev.<sha7>) — callers must not tag or promote these'
+        value: ${{ jobs.build.outputs.ephemeral }}
 
       # Frontend outputs
       build-frontend:
@@ -120,6 +123,7 @@ jobs:
       # Core build outputs
       version: ${{ steps.finalversion.outputs.version }}
       tag: '${{ steps.config.outputs.tag-prefix }}-${{ steps.finalversion.outputs.version }}'
+      ephemeral: ${{ steps.rfversion.outputs.ephemeral || 'false' }}
 
       # Frontend outputs
       build-frontend: ${{ steps.config.outputs.build-frontend }}

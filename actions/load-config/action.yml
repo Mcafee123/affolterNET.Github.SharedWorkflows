@@ -161,13 +161,16 @@ runs:
         
         # Set tf-module-path for the current deployment (based on branch).
         # Safe --arg lookup: raw interpolation breaks jq for any branch containing '/'
-        # (e.g. release/0.5.0). release/* and hotfix/* map to the develop target — rc
-        # candidates are tested on dev; main (prod) has its own mapping.
+        # (e.g. release/0.5.0). An EXACT branch key in the deploy config always wins, so
+        # projects can override; otherwise release/* and hotfix/* fall back to the develop
+        # target (rc candidates are tested on dev; main/prod has its own mapping).
         DEPLOY_BRANCH="${{ github.head_ref || github.ref_name }}"
-        case "$DEPLOY_BRANCH" in
-          release/*|hotfix/*) DEPLOY_LOOKUP="develop" ;;
-          *) DEPLOY_LOOKUP="$DEPLOY_BRANCH" ;;
-        esac
+        DEPLOY_LOOKUP="$DEPLOY_BRANCH"
+        if [ "$(echo "$DEPLOY_CONFIG" | jq -r --arg b "$DEPLOY_BRANCH" 'has($b)')" != "true" ]; then
+          case "$DEPLOY_BRANCH" in
+            release/*|hotfix/*) DEPLOY_LOOKUP="develop" ;;
+          esac
+        fi
         echo "tf-module-path=$(echo "$DEPLOY_CONFIG" | jq -r --arg b "$DEPLOY_LOOKUP" '.[$b].modulePath // empty')" >> $GITHUB_OUTPUT
 
         echo "tag-prefix=$(echo "$BUILD_CONFIG" | jq -r '.github.tagPrefix')" >> $GITHUB_OUTPUT
