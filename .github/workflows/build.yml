@@ -212,8 +212,8 @@ jobs:
           git fetch --tags --quiet
           BRANCH="${GITHUB_REF_NAME}"
           PREFIX="${{ steps.config.outputs.tag-prefix }}"
-          if [[ "$BRANCH" =~ ^release/([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
-            BASE="${BASH_REMATCH[1]}"
+          if [[ "$BRANCH" =~ ^(release|hotfix)/([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+            BASE="${BASH_REMATCH[2]}"
             N=1
             while git rev-parse -q --verify "refs/tags/${PREFIX}-${BASE}-rc.${N}" >/dev/null; do
               N=$((N+1))
