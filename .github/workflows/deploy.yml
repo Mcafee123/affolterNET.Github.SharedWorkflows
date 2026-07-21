@@ -15,8 +15,18 @@ on:
         type: string
 
       # Deploy options
-      tag: 
+      tag:
         description: "Tag to deploy (if not provided, will read version and generate tag)"
+        required: false
+        type: string
+        default: ""
+      ref:
+        description: "Git ref to check out for the deploy (overrides tag as checkout ref — e.g. a commit SHA for ephemeral release-flow deploys that have no git tag)"
+        required: false
+        type: string
+        default: ""
+      image-version:
+        description: "Image version to deploy (overrides version extraction from the tag; required for ephemeral release-flow deploys and safe for rc versions containing dashes). When set, the tfvars are synced in-workspace before terraform plan — nothing is committed."
         required: false
         type: string
         default: ""
@@ -66,6 +76,7 @@ jobs:
     outputs:
       version: ${{ steps.determine.outputs.version }}
       tag: ${{ steps.determine.outputs.tag }}
+      checkout-ref: ${{ steps.determine.outputs.checkout-ref }}
     steps:
     - name: Checkout code (only if no tag provided)
       if: inputs.tag == ''
@@ -113,6 +124,21 @@ jobs:
           echo "tag=$TAG" >> $GITHUB_OUTPUT
         fi
 
+        # image-version wins over any extraction — rc versions contain dashes, which the
+        # tag-suffix extraction above cannot handle, and ephemeral deploys have no tag at all.
+        if [ -n "${{ inputs.image-version }}" ]; then
+          echo "Overriding version with image-version input: ${{ inputs.image-version }}"
+          echo "version=${{ inputs.image-version }}" >> $GITHUB_OUTPUT
+        fi
+
+        # Checkout ref: explicit ref input (ephemeral deploys pass the commit SHA) or the
+        # determined tag (input or generated) — the latter is today's behavior, unchanged.
+        if [ -n "${{ inputs.ref }}" ]; then
+          echo "checkout-ref=${{ inputs.ref }}" >> $GITHUB_OUTPUT
+        else
+          echo "checkout-ref=$TAG" >> $GITHUB_OUTPUT
+        fi
+
     - name: Summary
       run: |
         echo "🔢 Version and Tag Determination Summary"
@@ -132,7 +158,7 @@ jobs:
     - name: Checkout code
       uses: affolterNET/affolterNET.Github.SharedWorkflows/actions/checkout@main
       with:
-        ref: ${{ needs.prepare.outputs.tag }}
+        ref: ${{ needs.prepare.outputs.checkout-ref }}
 
     # Load configuration
     - name: Load configuration
@@ -213,6 +239,16 @@ jobs:
       uses: webfactory/ssh-agent@v0.10.0
       with:
         ssh-private-key: ${{ secrets.ssh-private-key || secrets.SSH_PRIVATE_KEY }}
+
+    # release-flow: the deployed version is not committed anywhere — sync the tfvars in the
+    # workflow workspace only, so terraform deploys the requested image without a repo commit.
+    - name: Sync tfvars in-workspace (image-version)
+      if: ${{ inputs.image-version != '' && steps.config.outputs.tfvars-files != '' }}
+      uses: affolterNET/affolterNET.Github.SharedWorkflows/actions/tf-version@main
+      with:
+        version: ${{ inputs.image-version }}
+        tfvars-files: ${{ steps.config.outputs.tfvars-files }}
+        scripts-version: ${{ steps.config.outputs.scripts-version }}
 
     - name: Terraform Init
       run: terraform init -backend-config=_backend.hcl
