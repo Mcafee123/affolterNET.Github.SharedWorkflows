@@ -78,20 +78,20 @@ jobs:
       tag: ${{ steps.determine.outputs.tag }}
       checkout-ref: ${{ steps.determine.outputs.checkout-ref }}
     steps:
-    - name: Checkout code (only if no tag provided)
-      if: inputs.tag == ''
+    - name: Checkout code (only if no tag and no image-version provided)
+      if: inputs.tag == '' && inputs.image-version == ''
       uses: affolterNET/affolterNET.Github.SharedWorkflows/actions/checkout@main
 
-    - name: Load configuration (only if no tag provided)
-      if: inputs.tag == ''
+    - name: Load configuration (only if no tag and no image-version provided)
+      if: inputs.tag == '' && inputs.image-version == ''
       id: config
       uses: affolterNET/affolterNET.Github.SharedWorkflows/actions/load-config@main
       with:
         build-file: ${{ inputs.build-file }}
         deploy-file: ${{ inputs.deploy-file }}
 
-    - name: Read version from action (only if no tag provided)
-      if: inputs.tag == ''
+    - name: Read version from action (only if no tag and no image-version provided)
+      if: inputs.tag == '' && inputs.image-version == ''
       id: get-version
       uses: affolterNET/affolterNET.Github.SharedWorkflows/actions/version@main
       with:
@@ -112,6 +112,14 @@ jobs:
           fi
           echo "Using input tag: $TAG"
           echo "Extracted version: $VERSION"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+        elif [ -n "${{ inputs.image-version }}" ]; then
+          # No tag but explicit image-version (ephemeral release-flow deploy):
+          # label with the real version — no csproj read, no misleading sb-… tag.
+          VERSION="${{ inputs.image-version }}"
+          TAG="$VERSION"
+          echo "Using image-version as label: $VERSION"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "tag=$TAG" >> $GITHUB_OUTPUT
         else
