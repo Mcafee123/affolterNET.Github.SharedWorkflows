@@ -15,8 +15,18 @@ on:
         type: string
 
       # Deploy options
-      tag: 
+      tag:
         description: "Tag to deploy (if not provided, will read version and generate tag)"
+        required: false
+        type: string
+        default: ""
+      ref:
+        description: "Git ref to check out for the deploy (overrides tag as checkout ref — e.g. a commit SHA for ephemeral release-flow deploys that have no git tag)"
+        required: false
+        type: string
+        default: ""
+      image-version:
+        description: "Image version to deploy (overrides version extraction from the tag; required for ephemeral release-flow deploys and safe for rc versions containing dashes). When set, the tfvars are synced in-workspace before terraform plan — nothing is committed."
         required: false
         type: string
         default: ""
@@ -66,21 +76,22 @@ jobs:
     outputs:
       version: ${{ steps.determine.outputs.version }}
       tag: ${{ steps.determine.outputs.tag }}
+      checkout-ref: ${{ steps.determine.outputs.checkout-ref }}
     steps:
-    - name: Checkout code (only if no tag provided)
-      if: inputs.tag == ''
+    - name: Checkout code (only if no tag and no image-version provided)
+      if: inputs.tag == '' && inputs.image-version == ''
       uses: affolterNET/affolterNET.Github.SharedWorkflows/actions/checkout@main
 
-    - name: Load configuration (only if no tag provided)
-      if: inputs.tag == ''
+    - name: Load configuration (only if no tag and no image-version provided)
+      if: inputs.tag == '' && inputs.image-version == ''
       id: config
-      uses: affolterNET/affolterNET.Github.SharedWorkflows/actions/load-config@main
+      uses: affolterNET/affolterNET.Github.SharedWorkflows/actions/load-config@release-flow
       with:
         build-file: ${{ inputs.build-file }}
         deploy-file: ${{ inputs.deploy-file }}
 
-    - name: Read version from action (only if no tag provided)
-      if: inputs.tag == ''
+    - name: Read version from action (only if no tag and no image-version provided)
+      if: inputs.tag == '' && inputs.image-version == ''
       id: get-version
       uses: affolterNET/affolterNET.Github.SharedWorkflows/actions/version@main
       with:
@@ -103,6 +114,14 @@ jobs:
           echo "Extracted version: $VERSION"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "tag=$TAG" >> $GITHUB_OUTPUT
+        elif [ -n "${{ inputs.image-version }}" ]; then
+          # No tag but explicit image-version (ephemeral release-flow deploy):
+          # label with the real version — no csproj read, no misleading sb-… tag.
+          VERSION="${{ inputs.image-version }}"
+          TAG="$VERSION"
+          echo "Using image-version as label: $VERSION"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
         else
           # No tag provided - use version from action and generate tag
           VERSION="${{ steps.get-version.outputs.version }}"
@@ -111,6 +130,21 @@ jobs:
           echo "Generated tag: $TAG"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "tag=$TAG" >> $GITHUB_OUTPUT
+        fi
+
+        # image-version wins over any extraction — rc versions contain dashes, which the
+        # tag-suffix extraction above cannot handle, and ephemeral deploys have no tag at all.
+        if [ -n "${{ inputs.image-version }}" ]; then
+          echo "Overriding version with image-version input: ${{ inputs.image-version }}"
+          echo "version=${{ inputs.image-version }}" >> $GITHUB_OUTPUT
+        fi
+
+        # Checkout ref: explicit ref input (ephemeral deploys pass the commit SHA) or the
+        # determined tag (input or generated) — the latter is today's behavior, unchanged.
+        if [ -n "${{ inputs.ref }}" ]; then
+          echo "checkout-ref=${{ inputs.ref }}" >> $GITHUB_OUTPUT
+        else
+          echo "checkout-ref=$TAG" >> $GITHUB_OUTPUT
         fi
 
     - name: Summary
@@ -132,12 +166,12 @@ jobs:
     - name: Checkout code
       uses: affolterNET/affolterNET.Github.SharedWorkflows/actions/checkout@main
       with:
-        ref: ${{ needs.prepare.outputs.tag }}
+        ref: ${{ needs.prepare.outputs.checkout-ref }}
 
     # Load configuration
     - name: Load configuration
       id: config
-      uses: affolterNET/affolterNET.Github.SharedWorkflows/actions/load-config@main
+      uses: affolterNET/affolterNET.Github.SharedWorkflows/actions/load-config@release-flow
       with:
         build-file: ${{ inputs.build-file }}
         deploy-file: ${{ inputs.deploy-file }}
@@ -213,6 +247,21 @@ jobs:
       uses: webfactory/ssh-agent@v0.10.0
       with:
         ssh-private-key: ${{ secrets.ssh-private-key || secrets.SSH_PRIVATE_KEY }}
+
+    # release-flow: the deployed version is not committed anywhere — sync the tfvars in the
+    # workflow workspace only (inline sed, same replacement as ci_tf.sh sync-tfvars, but
+    # deliberately WITHOUT the action's commit+push, so nothing ever lands in the repo).
+    - name: Sync tfvars in-workspace (image-version)
+      if: ${{ inputs.image-version != '' && steps.config.outputs.tfvars-files != '' }}
+      shell: bash
+      run: |
+        VERSION="${{ inputs.image-version }}"
+        for f in ${{ steps.config.outputs.tfvars-files }}; do
+          if [ -f "$f" ]; then
+            sed -i "s|\(image_name.*=.*\".*:\)[^\"]*\"|\1$VERSION\"|g" "$f"
+            echo "synced $f:"; grep "image_name" "$f" || true
+          fi
+        done
 
     - name: Terraform Init
       run: terraform init -backend-config=_backend.hcl

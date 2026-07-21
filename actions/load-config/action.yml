@@ -159,8 +159,16 @@ runs:
         echo "tfvars-files=$TFVARS_FILES_LIST" >> $GITHUB_OUTPUT
         echo "tfvars-files-count=$FILES_COUNT" >> $GITHUB_OUTPUT
         
-        # Set tf-module-path for the current deployment (based on branch)
-        echo "tf-module-path=$(echo "$DEPLOY_CONFIG" | jq -r '.${{ github.head_ref || github.ref_name }}.modulePath')" >> $GITHUB_OUTPUT
+        # Set tf-module-path for the current deployment (based on branch).
+        # Safe --arg lookup: raw interpolation breaks jq for any branch containing '/'
+        # (e.g. release/0.5.0). release/* and hotfix/* map to the develop target — rc
+        # candidates are tested on dev; main (prod) has its own mapping.
+        DEPLOY_BRANCH="${{ github.head_ref || github.ref_name }}"
+        case "$DEPLOY_BRANCH" in
+          release/*|hotfix/*) DEPLOY_LOOKUP="develop" ;;
+          *) DEPLOY_LOOKUP="$DEPLOY_BRANCH" ;;
+        esac
+        echo "tf-module-path=$(echo "$DEPLOY_CONFIG" | jq -r --arg b "$DEPLOY_LOOKUP" '.[$b].modulePath // empty')" >> $GITHUB_OUTPUT
 
         echo "tag-prefix=$(echo "$BUILD_CONFIG" | jq -r '.github.tagPrefix')" >> $GITHUB_OUTPUT
         
@@ -185,7 +193,7 @@ runs:
         echo "  Terraform:"
         echo "    - tfvarsFiles: $TFVARS_FILES_LIST"
         echo "    - filesCount: $FILES_COUNT"
-        echo "    - tfModulePath: $(echo "$DEPLOY_CONFIG" | jq -r '.${{ github.head_ref || github.ref_name }}.modulePath')"
+        echo "    - tfModulePath: $(echo "$DEPLOY_CONFIG" | jq -r --arg b "$DEPLOY_LOOKUP" '.[$b].modulePath // empty')"
         echo "  GitHub:"
         echo "    - tagScript: $(echo "$BUILD_CONFIG" | jq -r '.github.tagScript')"
         echo "    - tagPrefix: $(echo "$BUILD_CONFIG" | jq -r '.github.tagPrefix')"

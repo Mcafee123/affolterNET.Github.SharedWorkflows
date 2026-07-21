@@ -23,6 +23,11 @@ on:
         description: "Update version"
         required: false
         type: boolean
+      versioning-mode:
+        description: "Versioning strategy: 'bump' (default — patch bump committed to the project file per build) or 'release-flow' (version derived from the branch: release/X.Y.Z → X.Y.Z-rc.N via existing git tags, any other branch → ephemeral 0.0.0-dev.<sha7>; nothing committed)."
+        required: false
+        type: string
+        default: "bump"
       environment:
         description: "GitHub environment for the build job. When set, call this workflow with `secrets: inherit` so environment-scoped secrets (ACR_USERNAME, ACR_PASSWORD) resolve. Empty = no environment (backward compatible)."
         required: false
@@ -113,8 +118,8 @@ jobs:
     name: 'build: ${{ github.head_ref || github.ref_name }}'
     outputs:
       # Core build outputs
-      version: ${{ steps.version.outputs.version }}
-      tag: '${{ steps.config.outputs.tag-prefix }}-${{ steps.version.outputs.version }}'
+      version: ${{ steps.finalversion.outputs.version }}
+      tag: '${{ steps.config.outputs.tag-prefix }}-${{ steps.finalversion.outputs.version }}'
 
       # Frontend outputs
       build-frontend: ${{ steps.config.outputs.build-frontend }}
@@ -152,7 +157,7 @@ jobs:
       # Load configuration at the start of the job
       - name: Load configuration
         id: config
-        uses: affolterNET/affolterNET.Github.SharedWorkflows/actions/load-config@main
+        uses: affolterNET/affolterNET.Github.SharedWorkflows/actions/load-config@release-flow
         with:
           build-file: ${{ inputs.build-file }}
           deploy-file: ${{ inputs.deploy-file }}
@@ -189,11 +194,48 @@ jobs:
 
       - name: Version
         id: version
+        if: inputs.versioning-mode != 'release-flow'
         uses: affolterNET/affolterNET.Github.SharedWorkflows/actions/version@main
         with:
           project_file: ${{ steps.config.outputs.backend-root }}/${{ steps.config.outputs.backend-folder }}/${{ steps.config.outputs.backend-project-file}}
           action: ${{ inputs.update-version == true && 'update' || 'read' }}
           scripts-version: ${{ steps.config.outputs.scripts-version }}
+
+      # release-flow: the version comes from the branch, never from a committed file.
+      #   release/X.Y.Z  → X.Y.Z-rc.N   (N = next free {tag-prefix}-X.Y.Z-rc.* git tag)
+      #   anything else  → 0.0.0-dev.<sha7>  (ephemeral, cleaned up by registry policy)
+      - name: Version (release-flow)
+        id: rfversion
+        if: inputs.versioning-mode == 'release-flow'
+        shell: bash
+        run: |
+          git fetch --tags --quiet
+          BRANCH="${GITHUB_REF_NAME}"
+          PREFIX="${{ steps.config.outputs.tag-prefix }}"
+          if [[ "$BRANCH" =~ ^(release|hotfix)/([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+            BASE="${BASH_REMATCH[2]}"
+            N=1
+            while git rev-parse -q --verify "refs/tags/${PREFIX}-${BASE}-rc.${N}" >/dev/null; do
+              N=$((N+1))
+            done
+            VERSION="${BASE}-rc.${N}"
+            echo "ephemeral=false" >> $GITHUB_OUTPUT
+          else
+            VERSION="0.0.0-dev.$(echo "${GITHUB_SHA}" | cut -c1-7)"
+            echo "ephemeral=true" >> $GITHUB_OUTPUT
+          fi
+          echo "Version (release-flow): $VERSION"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Resolve final version
+        id: finalversion
+        shell: bash
+        run: |
+          if [ "${{ inputs.versioning-mode }}" = "release-flow" ]; then
+            echo "version=${{ steps.rfversion.outputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${{ steps.version.outputs.version }}" >> $GITHUB_OUTPUT
+          fi
 
       - name: Build Frontend
         if: steps.config.outputs.build-frontend == 'true'
@@ -206,7 +248,7 @@ jobs:
       - name: Build Backend
         uses: affolterNET/affolterNET.Github.SharedWorkflows/actions/build-backend@main
         with:
-          version: ${{ steps.version.outputs.version }}
+          version: ${{ steps.finalversion.outputs.version }}
           project-root: ${{ steps.config.outputs.backend-root }}
           project-folder: ${{ steps.config.outputs.backend-folder }}
           project-file: ${{ steps.config.outputs.backend-project-file }}
@@ -217,11 +259,13 @@ jobs:
           acr-username: ${{ secrets.acr-username || secrets.ACR_USERNAME }}
           acr-password: ${{ secrets.acr-password || secrets.ACR_PASSWORD }}
 
+      # Ephemeral (release-flow, non-release branch) builds never touch committed files —
+      # the deploy workflow syncs tfvars in-workspace instead.
       - name: Sync tfvars with deployment version
         uses: affolterNET/affolterNET.Github.SharedWorkflows/actions/tf-version@main
-        if: ${{ steps.config.outputs.tfvars-files != '' }}
+        if: ${{ steps.config.outputs.tfvars-files != '' && steps.rfversion.outputs.ephemeral != 'true' }}
         with:
-          version: ${{ steps.version.outputs.version }}
+          version: ${{ steps.finalversion.outputs.version }}
           tfvars-files: ${{ steps.config.outputs.tfvars-files }}
           scripts-version: ${{ steps.config.outputs.scripts-version }}
 
@@ -230,8 +274,8 @@ jobs:
         run: |
           echo "🎯 Final Job Outputs:"
           echo "  Core Outputs:"
-          echo "    - version: ${{ steps.version.outputs.version }}"
-          echo "    - tag: ${{ steps.config.outputs.tag-prefix }}-${{ steps.version.outputs.version }}"
+          echo "    - version: ${{ steps.finalversion.outputs.version }}"
+          echo "    - tag: ${{ steps.config.outputs.tag-prefix }}-${{ steps.finalversion.outputs.version }}"
           echo "    - tag-prefix: ${{ steps.config.outputs.tag-prefix }}"
           echo "    - registry-name: ${{ steps.config.outputs.registry-name }}"
           echo "    - image-name: ${{ steps.config.outputs.image-name }}"
