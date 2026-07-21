@@ -241,14 +241,19 @@ jobs:
         ssh-private-key: ${{ secrets.ssh-private-key || secrets.SSH_PRIVATE_KEY }}
 
     # release-flow: the deployed version is not committed anywhere — sync the tfvars in the
-    # workflow workspace only, so terraform deploys the requested image without a repo commit.
+    # workflow workspace only (inline sed, same replacement as ci_tf.sh sync-tfvars, but
+    # deliberately WITHOUT the action's commit+push, so nothing ever lands in the repo).
     - name: Sync tfvars in-workspace (image-version)
       if: ${{ inputs.image-version != '' && steps.config.outputs.tfvars-files != '' }}
-      uses: affolterNET/affolterNET.Github.SharedWorkflows/actions/tf-version@main
-      with:
-        version: ${{ inputs.image-version }}
-        tfvars-files: ${{ steps.config.outputs.tfvars-files }}
-        scripts-version: ${{ steps.config.outputs.scripts-version }}
+      shell: bash
+      run: |
+        VERSION="${{ inputs.image-version }}"
+        for f in ${{ steps.config.outputs.tfvars-files }}; do
+          if [ -f "$f" ]; then
+            sed -i "s|\(image_name.*=.*\".*:\)[^\"]*\"|\1$VERSION\"|g" "$f"
+            echo "synced $f:"; grep "image_name" "$f" || true
+          fi
+        done
 
     - name: Terraform Init
       run: terraform init -backend-config=_backend.hcl
